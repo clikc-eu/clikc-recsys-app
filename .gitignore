@@ -351,3 +351,6 @@ MigrationBackup/
 
 # Others
 venv
+items.json
+users.json
+*.pickle
