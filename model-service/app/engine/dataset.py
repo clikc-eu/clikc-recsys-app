@@ -5,6 +5,9 @@ from lightfm.data import Dataset as LightDataset
 from constants import FilePath, DataSource, DatasetState
 from util.logger import logger
 from engine.load_store import store_fake_users_json, store_data, load_data
+import numpy as np
+from scipy import sparse
+
 
 
 class Dataset():
@@ -307,3 +310,34 @@ class Dataset():
         self.users_list = state[DatasetState.USERS_LIST]
         self.items_list = state[DatasetState.ITEMS_LIST]
         self.dataset = state[DatasetState.DATASET]
+
+
+    def build_fake_new_user_features(self, num_features: int = 10) -> list:
+        '''
+        Builds a fake new user features list from the overall set of features.
+        '''
+        new_user_features = []
+
+        new_user_features = list(set(
+            random.sample(self.user_features, num_features)))
+
+        return new_user_features
+
+
+    def format_new_user_input(self, user_feature_map, user_feature_list):
+        num_features = len(user_feature_list)
+        normalised_val = 1.0
+        target_indices = []
+
+        for feature in user_feature_list:
+            try:
+                target_indices.append(user_feature_map[feature])
+            except KeyError:
+                logger.info("New user feature encountered '{}'".format(feature))
+                pass
+
+        new_user_features = np.zeros(len(user_feature_map.keys()))
+        for i in target_indices:
+            new_user_features[i] = normalised_val
+        new_user_features = sparse.csr_matrix(new_user_features)
+        return(new_user_features)

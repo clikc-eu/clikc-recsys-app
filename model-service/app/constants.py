@@ -40,3 +40,13 @@ class DatasetState():
     ITEMS_LIST = "items_list"
     DATASET = "dataset"
 
+# Mapping of user and items
+class MappingType(Enum):
+    USER_ID_TYPE = 6
+    ITEM_ID_TYPE = 7
+
+class PredictionType(Enum):
+    ITEMS_FOR_USER = 8
+    ITEMS_FOR_UNKNOWN_USER = 9
+    ITEMS_FOR_KNOWN_ITEM = 10
+
