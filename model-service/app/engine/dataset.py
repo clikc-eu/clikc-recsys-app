@@ -12,7 +12,7 @@ class Dataset():
     This dataset class has to be used in order to train the recommender.
 
     - use 'build_from_local_json()' in order to use data from local json file(s).
-    - use 'build_from_remote_db()' in order to use data fetched from the
+    - use 'build_from_online_db()' in order to use data fetched from the
     remote database.
     '''
 
@@ -60,23 +60,32 @@ class Dataset():
                 if os.path.isfile(FilePath.TRAINED_MODEL_PICKLE_PATH):
                     os.remove(FilePath.TRAINED_MODEL_PICKLE_PATH)
 
-            self.build_from_local_json(
+            self.__build_from_local_json(
                 user_data_source=DataSource.LOCAL_USER_JSON)
-        elif data_source == DataSource.ONLINE_DB:
 
+        elif data_source == DataSource.ONLINE_DB:
             if os.path.isfile(FilePath.DATASET_PICKLE_PATH):
                 os.remove(FilePath.DATASET_PICKLE_PATH)
                 if os.path.isfile(FilePath.TRAINED_MODEL_PICKLE_PATH):
                     os.remove(FilePath.TRAINED_MODEL_PICKLE_PATH)
 
+            self.__build_from_online_db()
+
         elif data_source == DataSource.PICKLE:
             if os.path.isfile(FilePath.TRAINED_MODEL_PICKLE_PATH):
                 os.remove(FilePath.TRAINED_MODEL_PICKLE_PATH)
+
             self.__load_dataset()
 
         logger.info("Dataset ready.")
 
-    def build_from_local_json(self, user_data_source=DataSource.LOCAL_ON_DEMAND_USER):
+
+    def __build_from_online_db():
+        # TODO: Load from db using repository methods
+        pass
+
+
+    def __build_from_local_json(self, user_data_source=DataSource.LOCAL_ON_DEMAND_USER):
         '''
         By default generate new users. JSON usage must be specified
         '''
