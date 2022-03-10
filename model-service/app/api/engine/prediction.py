@@ -1,8 +1,8 @@
 import pandas as pd
 from constants import DataSource, FilePath
-from engine.training import check_trained_model
-from engine.dataset import Dataset
-from engine.load_store import load_data
+from .training import check_trained_model
+from .dataset import Dataset
+from .load_store import load_data
 from util.mapping import map_id_external_to_internal, map_id_internal_to_external, get_external_ids, get_user_feature_mapping
 from constants import DataSource, MappingType, PredictionType
 import numpy as np

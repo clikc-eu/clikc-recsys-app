@@ -1,7 +1,8 @@
 import json
 import os
 import pickle
-from constants import FilePath
+import shutil
+from ..constants import FilePath
 
 
 def store_fake_users_json(data, sorting_key: str):
@@ -27,3 +28,10 @@ def load_data(filename):
     with open(filename, "rb") as inp:
         data = pickle.load(inp)
     return data
+
+
+def move_data(dest: str, source: str):
+    '''
+    Move data from 'source' to 'dest'
+    '''
+    shutil.move(os.path.join('./', source), os.path.join('./', dest))

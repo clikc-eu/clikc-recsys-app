@@ -8,6 +8,7 @@ class FilePath():
 
     # Dataset pickle file
     DATASET_PICKLE_PATH = "dataset.pickle"
+    TEMP_DATASET_PICKLE_PATH = "temp_dataset.pickle"
 
     # Trained model pickle file
     TRAINED_MODEL_PICKLE_PATH = "trained_model.pickle"

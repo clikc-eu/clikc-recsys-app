@@ -1,9 +1,9 @@
 import os
 from lightfm import LightFM
-from engine.dataset import Dataset
-from engine.load_store import store_data
-from constants import DataSource, FilePath
-from util.logger import logger
+from .dataset import Dataset
+from .load_store import store_data, move_data
+from ..constants import DataSource, FilePath
+from ..util.logger import logger
 
 
 def train_model(data_source: DataSource = DataSource.LOCAL_JSON):
@@ -23,6 +23,7 @@ def train_model(data_source: DataSource = DataSource.LOCAL_JSON):
     logger.info("Model trained. Storing on disk.")
 
     store_data(model, FilePath.TRAINED_MODEL_PICKLE_PATH)
+    move_data(source=FilePath.TEMP_DATASET_PICKLE_PATH, dest=FilePath.DATASET_PICKLE_PATH)
 
     logger.info("Model stored on disk.")
 
@@ -59,7 +60,8 @@ def train(interactions, user_features_matrix, item_features_matrix):
         # (no_items, no_items_features) sparse matrix
         item_features=item_features_matrix,
         epochs=50,
-        num_threads=os.cpu_count()
+        num_threads=os.cpu_count(),
+        verbose=True
     )
 
     return model

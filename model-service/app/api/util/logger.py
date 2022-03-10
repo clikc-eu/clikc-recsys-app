@@ -1,5 +1,5 @@
 import logging
-from constants import FilePath
+from ..constants import FilePath
 
 # Setup Model Service Logger
 logging.basicConfig(

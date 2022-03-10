@@ -2,9 +2,9 @@ import json
 import os
 import random
 from lightfm.data import Dataset as LightDataset
-from constants import FilePath, DataSource, DatasetState
-from util.logger import logger
-from engine.load_store import store_fake_users_json, store_data, load_data
+from ..constants import FilePath, DataSource, DatasetState
+from ..util.logger import logger
+from .load_store import store_fake_users_json, store_data, load_data
 import numpy as np
 from scipy import sparse
 
@@ -58,25 +58,19 @@ class Dataset():
         # depending on data_source
         if data_source == DataSource.LOCAL_JSON:
 
-            if os.path.isfile(FilePath.DATASET_PICKLE_PATH):
-                os.remove(FilePath.DATASET_PICKLE_PATH)
-                if os.path.isfile(FilePath.TRAINED_MODEL_PICKLE_PATH):
-                    os.remove(FilePath.TRAINED_MODEL_PICKLE_PATH)
+            if os.path.isfile(FilePath.TEMP_DATASET_PICKLE_PATH):
+                os.remove(FilePath.TEMP_DATASET_PICKLE_PATH)
 
             self.__build_from_local_json(
                 user_data_source=DataSource.LOCAL_USER_JSON)
 
         elif data_source == DataSource.ONLINE_DB:
-            if os.path.isfile(FilePath.DATASET_PICKLE_PATH):
-                os.remove(FilePath.DATASET_PICKLE_PATH)
-                if os.path.isfile(FilePath.TRAINED_MODEL_PICKLE_PATH):
-                    os.remove(FilePath.TRAINED_MODEL_PICKLE_PATH)
+            if os.path.isfile(FilePath.TEMP_DATASET_PICKLE_PATH):
+                os.remove(FilePath.TEMP_DATASET_PICKLE_PATH)
 
             self.__build_from_online_db()
 
         elif data_source == DataSource.PICKLE:
-            if os.path.isfile(FilePath.TRAINED_MODEL_PICKLE_PATH):
-                os.remove(FilePath.TRAINED_MODEL_PICKLE_PATH)
 
             self.__load_dataset()
 
@@ -184,6 +178,7 @@ class Dataset():
 
     def __load_users(self):
         # Open json  file
+
         f = open(os.getcwd() + '/' + FilePath.USER_JSON_PATH)
 
         # Read json file as python dictionary
@@ -297,7 +292,7 @@ class Dataset():
             DatasetState.ITEMS_LIST: self.items_list,
             DatasetState.DATASET: self.dataset
         }
-        store_data(state, FilePath.DATASET_PICKLE_PATH)
+        store_data(state, FilePath.TEMP_DATASET_PICKLE_PATH)
 
     def __load_dataset(self):
         state = load_data(FilePath.DATASET_PICKLE_PATH)
