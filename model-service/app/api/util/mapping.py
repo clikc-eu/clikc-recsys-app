@@ -1,4 +1,4 @@
-from constants import MappingType
+from ..constants import MappingType
 from lightfm.data import Dataset as LightDataset
 
 
