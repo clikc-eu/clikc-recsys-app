@@ -354,3 +354,4 @@ venv
 items.json
 users.json
 *.pickle
+.DS_Store

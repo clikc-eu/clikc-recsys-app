@@ -25,8 +25,8 @@ class Dataset():
         '''
 
         # List of users and items
-        self.users_list = []
-        self.items_list = []
+        self.users_list = None
+        self.items_list = None
 
         # LightFM dataset 'LightDataset' object
         # https://making.lyst.com/lightfm/docs/lightfm.data.html
@@ -39,11 +39,11 @@ class Dataset():
         # Features for each user
         # A row represents a user, a column represents a feature listed
         # in in self.user_features List
-        self.user_features_matrix = None
+        self.uf_matrix = None
 
         # Features for each item
         # A row represents an item, a column represents a feature in self.item_features
-        self.item_features_matrix = None
+        self.if_matrix = None
 
         # List of user features
         self.user_features = None
@@ -123,7 +123,7 @@ class Dataset():
         # Also mappings for user and item features are created.
         self.dataset.fit(
             ([user["user_id"] for user in self.users_list]),
-            ([article["item_id"] for article in items_list]),
+            ([item["item_id"] for item in self.items_list]),
             user_features=self.user_features,
             item_features=self.item_features
         )
@@ -136,7 +136,7 @@ class Dataset():
         self.interactions = self.__build_interactions_matrix(self.users_list)
 
         (self.test_interactions, _) = self.dataset.build_interactions(
-            self.__build_fake_test_interactions(self.users_list, items_list)
+            self.__build_fake_test_interactions(self.users_list, self.items_list)
         )
 
         # Building the items and users feature matrixes
@@ -148,7 +148,7 @@ class Dataset():
 
         # format: [(item1 , [feature1, feature2, ...]), ..]
         items_features_list = list()
-        for item in items_list:
+        for item in self.items_list:
             items_features_list.append(
                 (item["item_id"], [item["theme"], item["place"]]))
 
@@ -284,8 +284,8 @@ class Dataset():
         state = {
             DatasetState.INTERACTIONS: self.interactions,
             DatasetState.TEST_INTERACTIONS: self.test_interactions,
-            DatasetState.USER_FEATURES_MATRIX: self.user_features_matrix,
-            DatasetState.ITEM_FEATURES_MATRIX: self.item_features_matrix,
+            DatasetState.USER_FEATURES_MATRIX: self.uf_matrix,
+            DatasetState.ITEM_FEATURES_MATRIX: self.if_matrix,
             DatasetState.USER_FEATURES: self.user_features,
             DatasetState.ITEM_FEATURES: self.item_features,
             DatasetState.USERS_LIST: self.users_list,
@@ -298,8 +298,8 @@ class Dataset():
         state = load_data(FilePath.DATASET_PICKLE_PATH)
         self.interactions = state[DatasetState.INTERACTIONS]
         self.test_interactions = state[DatasetState.TEST_INTERACTIONS]
-        self.user_features_matrix = state[DatasetState.USER_FEATURES_MATRIX]
-        self.item_features_matrix = state[DatasetState.ITEM_FEATURES_MATRIX]
+        self.uf_matrix = state[DatasetState.USER_FEATURES_MATRIX]
+        self.if_matrix = state[DatasetState.ITEM_FEATURES_MATRIX]
         self.user_features = state[DatasetState.USER_FEATURES]
         self.item_features = state[DatasetState.ITEM_FEATURES]
         self.users_list = state[DatasetState.USERS_LIST]

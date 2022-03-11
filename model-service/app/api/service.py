@@ -12,5 +12,9 @@ class ModelService():
         return RecommendOut(ids=prediction.predict_for_user(user_id=user_id, num_pred=num_pred))
 
 
+    def get_recommendations_for_new_user(self, user_features: List[str], num_pred: int):
+        return RecommendOut(ids=prediction.predict_for_new_user(user_features=user_features, num_pred=num_pred))
+
+
     def get_similar_items(self, item_id: int, num_pred: int):
         return RecommendOut(ids=prediction.predict_items_for_known_item(item_id=item_id, num_pred=num_pred))

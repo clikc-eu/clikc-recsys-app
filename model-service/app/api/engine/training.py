@@ -18,7 +18,7 @@ def train_model(data_source: DataSource = DataSource.LOCAL_JSON):
     logger.info("Training model from scratch.")
 
     model = train(
-        dataset.interactions, dataset.user_features_matrix, dataset.item_features_matrix)
+        dataset.interactions, dataset.uf_matrix, dataset.if_matrix)
 
     logger.info("Model trained. Storing on disk.")
 

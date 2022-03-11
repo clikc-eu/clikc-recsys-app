@@ -7,8 +7,6 @@ services:
     volumes:
       - ./model-service/:/app/
     container_name: model_service
-    ports:
-    - 8001:8000
 
   nginx:
     image: nginx:latest
