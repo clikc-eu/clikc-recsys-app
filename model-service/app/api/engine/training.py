@@ -22,6 +22,7 @@ def train_model(data_source: DataSource = DataSource.LOCAL_JSON):
 
     logger.info("Model trained. Storing on disk.")
 
+    # Save model and dataset (from temporary file to the definitive one)
     store_data(model, FilePath.TRAINED_MODEL_PICKLE_PATH)
     move_data(source=FilePath.TEMP_DATASET_PICKLE_PATH, dest=FilePath.DATASET_PICKLE_PATH)
 

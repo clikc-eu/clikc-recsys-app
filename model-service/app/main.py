@@ -4,6 +4,7 @@ from .api.engine import training
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 import atexit
+from .api.constants import TrainingJob
 
 # Run training at server start if needed
 if training.check_trained_model() == False:
@@ -15,8 +16,8 @@ scheduler.start()
 scheduler.add_job(
     func=training.train_model,
     trigger=CronTrigger(hour=1, minute=30),
-    id='model_training_job',
-    name='Train model each day',
+    id=TrainingJob.JOB_ID,
+    name=TrainingJob.JOB_NAME,
     replace_existing=True)
 # Shut down the scheduler when exiting the app
 atexit.register(lambda: scheduler.shutdown())

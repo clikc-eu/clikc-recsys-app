@@ -51,3 +51,7 @@ class PredictionType(Enum):
     ITEMS_FOR_UNKNOWN_USER = 9
     ITEMS_FOR_KNOWN_ITEM = 10
 
+class TrainingJob():
+    JOB_ID = 'model_training_job'
+    JOB_NAME = 'Train model each day'
+

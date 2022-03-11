@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status
 from .service import ModelService
-from .models import StatusOut, RecommendOut, UserFeaturesIn
+from .models import StatusOut, RecommendOut, StatusTrainingOut, UserFeaturesIn
 
 
 model = APIRouter()
@@ -14,6 +14,15 @@ def get_status():
             - Model trained
     '''
     return ModelService().get_model_status()
+
+
+@model.post('/train', response_model=StatusTrainingOut, status_code=status.HTTP_202_ACCEPTED)
+def train_model():
+    '''
+        This endpoint gives us some to manually trigger a model training without interfer
+        with the default scheduling. Simply, next training is perfomed with this call.
+    '''
+    return ModelService().train_model()
 
 
 @model.post('/recommendations/user/features', response_model=RecommendOut, status_code=status.HTTP_200_OK)

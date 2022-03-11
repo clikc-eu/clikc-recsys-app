@@ -10,5 +10,9 @@ class StatusOut(BaseModel):
     model_trained: bool
 
 
+class StatusTrainingOut(BaseModel):
+    training_triggered: bool
+
+
 class RecommendOut(BaseModel):
     ids: List[int]
