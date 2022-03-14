@@ -16,7 +16,7 @@ app.include_router(recsys_interface, prefix='/api/v1/recsys-interface', tags=['r
 
 @app.on_event("startup")
 async def startup_event():
-    setattr(app.state, "client_session", ClientSession(raise_for_status=True))
+    setattr(app.state, "client_session", ClientSession(raise_for_status=False))
 
 
 @app.on_event("shutdown")

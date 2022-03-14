@@ -9,17 +9,28 @@ Moreover a NGINX server is used.
 Each microservice is delivered via Docker containers by using Docker Compose.
 
 ### How to run it
-- Install docker and docker-compose.
-- Clone the repository and go to the main folder.
-- Open the Terminal application and run "docker-compose up -d". In the end open your internet browser.
+- Install Docker and Docker Compose.
+- Clone the repository and go to the main folder (docker-compose.yml level).
+- Open the Terminal application here and run "docker-compose up -d".
+- In the end open your internet browser and open one of links here below.
 
-### Model Service Endpoints (used INTERNALLY by Recsys Interface Service only)
-- Go to http://localhost:8080/api/v1/model/docs (GET) to get the documentation about Model Service.
-- Go to http://localhost:8080/api/v1/model/status (GET) to get the status of the Model Service.
-- Go to http://localhost:8080/api/v1/model/train (POST) to manually train the model of the Model Service.
-- Go to http://localhost:8080/api/v1/model/recommendations/user/{user_id} (GET) to get recommendations for a given user.
-- Go to http://localhost:8080/api/v1/model/recommendations/user/features (POST) to get recommendations for a new user given a list of features (features must belong to the dataset used during training).
-- Go to http://localhost:8080/api/v1/model/recommendations/item/{item_id} (GET) to get similar items via cosine similarity.
+Note: for a fast usage go to http://localhost:8080/api/v1/recsys-interface/docs.
+
+### Recsys Interface Service Endpoint (MUST USE THESE)
+- Go to http://localhost:8080/api/v1/recsys-interface/docs (GET) to get the documentation about.
+- Go to http://localhost:8080/api/v1/recsys-interface/status (GET) to get service status.
+- Go to http://localhost:8080/api/v1/recsys-interface/train (POST) to manually train the model of Model Service.
+- Go to http://localhost:8080/api/v1/recsys-interface/recommendations/user/{user_id} (GET) to get recommendations for a given user via its id.
+- Go to http://localhost:8080/api/v1/recsys-interface/recommendations/user/features (POST) to get recommendations for a new user given a list of features (features must belong to the dataset used during training).
+- Go to http://localhost:8080/api/v1/recsys-interface/recommendations/item/{item_id} (GET) to get similar items via cosine similarity.
+
+### Model Service Endpoints (used INTERNALLY by Recsys Interface Service to communicate with Model Service)
+- http://localhost:8080/api/v1/model/docs (GET).
+- http://localhost:8080/api/v1/model/status (GET).
+- http://localhost:8080/api/v1/model/train (POST).
+- http://localhost:8080/api/v1/model/recommendations/user/{user_id} (GET).
+- http://localhost:8080/api/v1/model/recommendations/user/features (POST).
+- http://localhost:8080/api/v1/model/recommendations/item/{item_id} (GET).
 
 ### Notes
 - Automatic training is set to run at 1:30 AM (CET).
