@@ -38,6 +38,11 @@ def predict_for_user(user_id: int, num_pred: int):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'User With ID={user_id} Not Found.')
 
+    # Check if num_pred is less than the overall number of items
+    if num_pred > len(dataset.items_list):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail='Number Of Requested Predictions Exceeds The Number Of Items')
+
     num_items = len(dataset.items_list)
 
     # Map external id to internal dataset id
@@ -94,6 +99,11 @@ def predict_for_new_user(user_features: List[str], num_pred: int, fake_features_
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail='Not Valid List of Features')
 
+    # Check if num_pred is less than the overall number of items
+    if num_pred > len(dataset.items_list):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail='Number Of Requested Predictions Exceeds The Number Of Items')
+
         # Generate fake user features if needed
     if fake_features_generation == True:
         user_features = dataset.build_fake_new_user_features(
@@ -139,6 +149,11 @@ def predict_items_for_known_item(item_id: int, num_pred: int):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Item With ID={item_id} Not Found.')
 
+    # Check if num_pred is less than the overall number of items
+    if num_pred > len(dataset.items_list):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail='Number Of Requested Predictions Exceeds The Number Of Items')
+
     internal_item_id = map_id_external_to_internal(
         dataset=dataset.dataset, external_id=item_id, id_type=MappingType.ITEM_ID_TYPE)
 
@@ -153,11 +168,9 @@ def predict_items_for_known_item(item_id: int, num_pred: int):
     scores /= item_norms
     normalized_scores = scores/item_norms[internal_item_id]
 
-    res = sort_predictions(predictions=normalized_scores, dataset=dataset, num_pred=num_pred+1,
-                           id_type=MappingType.ITEM_ID_TYPE, prediction_type=PredictionType.ITEMS_FOR_KNOWN_ITEM)
-    res.remove(item_id)
-
-    return res
+    # it is possible to remove the object for which we are requesting similarity
+    return sort_predictions(predictions=normalized_scores, dataset=dataset, num_pred=num_pred,
+                            id_type=MappingType.ITEM_ID_TYPE, prediction_type=PredictionType.ITEMS_FOR_KNOWN_ITEM)
 
 
 def sort_predictions(predictions, dataset: Dataset, id_type: MappingType, prediction_type: PredictionType, num_pred: int = 100, item_with_no_interaction_ids=None):
