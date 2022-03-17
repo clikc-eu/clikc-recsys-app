@@ -38,11 +38,16 @@ Note: for a fast usage go to http://localhost:8080/api/v1/recsys-interface/docs.
 - Background training is performed via APScheduler library.
 - Communication between microservices is performed via AIOHTTP library.
 
-### References
+### Credits & Documentations
 - LightFM Documentation: https://making.lyst.com/lightfm/docs/home.html
+- LightFM repository: https://github.com/lyst/lightfm
 - FastAPI Documentation: https://fastapi.tiangolo.com/
+- FastAPI repository: https://github.com/tiangolo/fastapi
 - APScheduler Documentation: https://apscheduler.readthedocs.io/en/3.x/index.html
+- APScheduler repository: https://github.com/agronholm/apscheduler
 - AIOHTTP Documentation: https://docs.aiohttp.org/en/stable/
+- AIOHTTP repository: https://github.com/aio-libs/aiohttp
 - Docker Compose Documentation: https://docs.docker.com/compose/
+- Docker Compose repository: https://github.com/docker/compose
 
 
