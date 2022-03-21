@@ -2,11 +2,16 @@ import json
 import os
 import random
 from lightfm.data import Dataset as LightDataset
+import pandas as pd
 from ..constants import FilePath, DataSource, DatasetState
 from ..util.logger import logger
 from .load_store import store_fake_users_json, store_data, load_data
 import numpy as np
 from scipy import sparse
+import it_core_news_sm
+import spacy
+from collections import Counter
+from string import punctuation
 
 
 
@@ -90,6 +95,15 @@ class Dataset():
         # Load items from json file
         items_dump = self.__load_items()
 
+
+        logger.info("Extracting keywords from local dump.")
+
+        # Upgrade items_dump with extracted keywords
+        # Some items might not have any keywords
+        items_dump = self.__extract_keywords(items_dump)
+
+        logger.info("Keywords successfully extracted.")
+
         # Load users from json file if necessary
         if user_data_source == DataSource.LOCAL_USER_JSON:
             users_dump = self.__load_users()
@@ -97,12 +111,19 @@ class Dataset():
         # Build list of features names
         themes_names = list({item.get("theme") for item in items_dump})
         places_names = list({item.get("place") for item in items_dump})
+        keywords = []
+        for item in items_dump:
+            if item.get('extracted_keywords'):
+                keywords.extend(item.get('extracted_keywords'))
+        keywords = list(set(keywords))
 
         # User features are a mix of themes, places and national
         self.user_features = themes_names + places_names + ["national"]
+        # Item features are a mix of themes, places, national and keywords
+        self.item_features = themes_names + places_names + ["national"] + keywords
         # Drop duplicates
         self.user_features = list(dict.fromkeys(self.user_features))
-        self.item_features = self.user_features
+        self.item_features = list(dict.fromkeys(self.item_features))
 
         # Extract items with valid structure
         self.items_list = items_list = self.__extract_items_from_local_dump(
@@ -149,8 +170,11 @@ class Dataset():
         # format: [(item1 , [feature1, feature2, ...]), ..]
         items_features_list = list()
         for item in self.items_list:
+            kwds = []
+            if item.get("extracted_keywords"):
+                kwds += item["extracted_keywords"]
             items_features_list.append(
-                (item["item_id"], [item["theme"], item["place"]]))
+                (item["item_id"], list(dict.fromkeys([item["theme"], item["place"]] + kwds))))
 
         self.uf_matrix = self.dataset.build_user_features(users_features_list)
         logger.info("Users features matrix has been built: %s" %
@@ -197,6 +221,8 @@ class Dataset():
         for item_dict in local_items_dump:
             if item_dict.get("entities") and item_dict.get("theme") and item_dict.get("place"):
                 items_list.append(item_dict)
+
+        logger.info(f"Number of dropped item: {len(local_items_dump) - len(items_list)}")
 
         return items_list
 
@@ -305,6 +331,33 @@ class Dataset():
         self.users_list = state[DatasetState.USERS_LIST]
         self.items_list = state[DatasetState.ITEMS_LIST]
         self.dataset = state[DatasetState.DATASET]
+
+
+    def __extract_keywords(self, items_dump):
+
+        # Load proper model
+        model = it_core_news_sm.load()
+
+        # For each item get extracted keywords
+        item_keywords = []
+        for item in items_dump:
+            keywords = list(set((self.__get_keywords(model, item.get('title')))))
+            item_keywords.append(keywords)
+
+        items_df = pd.DataFrame(items_dump)
+        items_df['extracted_keywords'] = item_keywords
+
+        return items_df.to_dict('records')
+
+
+    def __get_keywords(self, nlp_model, plain_text):
+        res = []
+        doc = nlp_model(plain_text.lower())
+        for word in doc:
+            if word.pos_ in ['PROPN', 'ADJ', 'NOUN', 'NUM'] and not (word.text in nlp_model.Defaults.stop_words or word.text in punctuation):
+                res.append(word.text)
+                
+        return res
 
 
     def build_fake_new_user_features(self, num_features: int = 10) -> list:
