@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  model_service:
+    build: ./model-service
+    command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+    volumes:
+      - ./model-service/:/app/
+    container_name: model_service
+
+  recsys_interface_service:
+    build: ./recsys-interface-service
+    command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+    volumes:
+      - ./recsys-interface-service/:/app/
+    container_name: recsys_interface_service
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx_server
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./nginx_config.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - model_service
+      - recsys_interface_service
