@@ -5,3 +5,4 @@ lightfm
 apscheduler
 pandas
 numpy
+spacy
