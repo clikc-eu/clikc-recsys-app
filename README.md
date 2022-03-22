@@ -37,7 +37,7 @@ Note: for a fast usage go to http://localhost:8080/api/v1/recsys-interface/docs.
 - One training request can be accepted at a time. Next calls will be ignored until current training is done.
 - Background training is performed via APScheduler library.
 - Communication between microservices is performed via AIOHTTP library.
-- Feature extraction is performed via spaCy.
+- Keyword extraction is performed via spaCy.
 
 ### Credits & Documentations
 - LightFM Documentation: https://making.lyst.com/lightfm/docs/home.html
