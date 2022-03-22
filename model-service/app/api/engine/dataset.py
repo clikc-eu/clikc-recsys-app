@@ -353,9 +353,16 @@ class Dataset():
     def __get_keywords(self, nlp_model, plain_text):
         res = []
         doc = nlp_model(plain_text.lower())
+
+        # Add keywords by specifying grammar elements
         for word in doc:
             if word.pos_ in ['PROPN', 'ADJ', 'NOUN', 'NUM'] and not (word.text in nlp_model.Defaults.stop_words or word.text in punctuation):
                 res.append(word.text)
+
+        # Add recognized entities to keywords - to be enabled with a good model only
+        # if doc.ents:
+        #     for entity in doc.ents:
+        #         res.append(entity.text)
                 
         return res
 
