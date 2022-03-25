@@ -8,7 +8,7 @@ from ..util.logger import logger
 from .load_store import store_fake_users_json, store_data, load_data
 import numpy as np
 from scipy import sparse
-import it_core_news_sm
+import it_core_news_lg
 import spacy
 from collections import Counter
 from string import punctuation
@@ -336,7 +336,7 @@ class Dataset():
     def __extract_keywords(self, items_dump):
 
         # Load proper model
-        model = it_core_news_sm.load()
+        model = it_core_news_lg.load()
 
         # For each item get extracted keywords
         item_keywords = []
@@ -352,17 +352,12 @@ class Dataset():
 
     def __get_keywords(self, nlp_model, plain_text):
         res = []
-        doc = nlp_model(plain_text.lower())
+        doc = nlp_model(plain_text)
 
-        # Add keywords by specifying grammar elements
-        for word in doc:
-            if word.pos_ in ['PROPN', 'ADJ', 'NOUN', 'NUM'] and not (word.text in nlp_model.Defaults.stop_words or word.text in punctuation):
-                res.append(word.text)
-
-        # Add recognized entities to keywords - to be enabled with a good model only
-        # if doc.ents:
-        #     for entity in doc.ents:
-        #         res.append(entity.text)
+        # Recognized entities
+        if doc.ents:
+            for entity in doc.ents:
+                res.append(entity.text.lower())
                 
         return res
 
