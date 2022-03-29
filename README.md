@@ -38,6 +38,8 @@ Note: for a fast usage go to http://localhost:8080/api/v1/recsys-interface/docs.
 - Background training is performed via APScheduler library.
 - Communication between microservices is performed via AIOHTTP library.
 - Keyword extraction is performed via spaCy.
+- Json schema (local dataset) validation is performed via 
+jsonschema.
 
 ### Credits & Documentations
 - LightFM Documentation: https://making.lyst.com/lightfm/docs/home.html
@@ -50,6 +52,8 @@ Note: for a fast usage go to http://localhost:8080/api/v1/recsys-interface/docs.
 - AIOHTTP repository: https://github.com/aio-libs/aiohttp
 - spaCy Documentation: https://spacy.io
 - spaCy repository: https://github.com/explosion/spaCy
+- jsonschema Documentation: https://python-jsonschema.readthedocs.io/en/stable/#
+- jsonschema repository: https://github.com/python-jsonschema/jsonschema
 - Docker Compose Documentation: https://docs.docker.com/compose/
 - Docker Compose repository: https://github.com/docker/compose
 
