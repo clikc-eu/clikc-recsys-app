@@ -10,6 +10,8 @@ import numpy as np
 from scipy import sparse
 import it_core_news_lg
 import spacy
+import jsonschema
+from jsonschema import validate
 from collections import Counter
 from string import punctuation
 
@@ -190,27 +192,79 @@ class Dataset():
         self.__store_dataset()
 
     def __load_items(self):
-        # Open json  file
-        f = open(os.getcwd() + '/' + FilePath.ITEM_JSON_PATH)
+        item_data = list()
 
-        # Read json file as python dictionary
-        item_data = json.load(f)
+        # Get item json schema
+        json_schema = self.__get_json_schema(FilePath.ITEM_SCHEMA_JSON_PATH)
 
-        # Close json file
-        f.close()
+        # Open json file
+        if os.path.isfile(os.getcwd() + '/' + FilePath.ITEM_JSON_PATH):
+            with open(os.getcwd() + '/' + FilePath.ITEM_JSON_PATH, 'r') as f:
+                # Read json file as python dictionary
+                try:
+                    item_data = json.load(f)
+                    if not item_data:
+                        raise KeyError()
+                except KeyError as ke:
+                    logger.error(f"Error when accessing source `{FilePath.ITEM_JSON_PATH}` file: {ke}")
+                    exit()
+                except json.JSONDecodeError as jde:
+                    logger.error(f"Error when decoding `{FilePath.ITEM_JSON_PATH}` file: {jde}")
+                    exit()
+
+        try:
+            validate(instance=item_data, schema=json_schema)
+        except jsonschema.ValidationError as ve:
+                logger.error(f"Error when validating json `{FilePath.ITEM_JSON_PATH}`: {ve}")
+                exit()
+
         return item_data
 
     def __load_users(self):
+        user_data = list()
+
+        # Get item json schema
+        json_schema = self.__get_json_schema(FilePath.USER_SCHEMA_JSON_PATH)
+
         # Open json  file
+        if os.path.isfile(os.getcwd() + '/' + FilePath.USER_JSON_PATH):
+            with open(os.getcwd() + '/' + FilePath.USER_JSON_PATH, 'r') as f:
+                # Read json file as python dictionary
+                try:
+                    user_data = json.load(f)
+                    if not user_data:
+                        raise KeyError()
+                except KeyError as ke:
+                    logger.error(f"Error when accessing source `{FilePath.USER_JSON_PATH}` file: {ke}")
+                    exit()
+                except json.JSONDecodeError as jde:
+                    logger.error(f"Error when decoding `{FilePath.USER_JSON_PATH}` file: {jde}")
+                    exit()
 
-        f = open(os.getcwd() + '/' + FilePath.USER_JSON_PATH)
+        try:
+            validate(instance=user_data, schema=json_schema)
+        except jsonschema.ValidationError as ve:
+                logger.error(f"Error when validating json `{FilePath.USER_JSON_PATH}`: {ve}")
+                exit()
 
-        # Read json file as python dictionary
-        user_data = json.load(f)
-
-        # Close json file
-        f.close()
         return user_data
+
+    def __get_json_schema(self, filename: str) -> dict:
+        if os.path.isfile(os.getcwd() + '/' + filename):
+            with open(os.getcwd() + '/' + filename, 'r') as f_schema:
+                try:
+                    json_schema = json.load(f_schema)
+                    if not json_schema:
+                        raise KeyError()
+                except KeyError as ke:
+                    logger.error(f"Error when accessing source `{filename}` file: {ke}")
+                    exit()
+                except json.JSONDecodeError as jde:
+                    logger.error(f"Error when decoding `{filename}` file: {jde}")
+                    exit()
+
+        return json_schema
+
 
     def __extract_items_from_local_dump(self, local_items_dump):
         '''

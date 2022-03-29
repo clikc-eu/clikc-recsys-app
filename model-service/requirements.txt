@@ -6,3 +6,5 @@ apscheduler
 pandas
 numpy
 spacy
+jsonschema
+click==8.0.4
