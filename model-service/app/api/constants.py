@@ -16,6 +16,8 @@ class FilePath():
     # Local dataset items and users files
     ITEM_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + "items.json"
     USER_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + "users.json"
+    ITEM_SCHEMA_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + "items_schema.json"
+    USER_SCHEMA_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + "users_schema.json"
 
     # Log file
     LOG_PATH = "main.log"

@@ -351,6 +351,8 @@ MigrationBackup/
 
 # Others
 venv
+items_schema.json
+users_schema.json
 items.json
 users.json
 *.pickle

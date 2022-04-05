@@ -2,11 +2,18 @@ import json
 import os
 import random
 from lightfm.data import Dataset as LightDataset
+import pandas as pd
 from ..constants import FilePath, DataSource, DatasetState
 from ..util.logger import logger
 from .load_store import store_fake_users_json, store_data, load_data
 import numpy as np
 from scipy import sparse
+import it_core_news_lg
+import spacy
+import jsonschema
+from jsonschema import validate
+from collections import Counter
+from string import punctuation
 
 
 
@@ -90,6 +97,15 @@ class Dataset():
         # Load items from json file
         items_dump = self.__load_items()
 
+
+        logger.info("Extracting keywords from local dump.")
+
+        # Upgrade items_dump with extracted keywords
+        # Some items might not have any keywords
+        items_dump = self.__extract_keywords(items_dump)
+
+        logger.info("Keywords successfully extracted.")
+
         # Load users from json file if necessary
         if user_data_source == DataSource.LOCAL_USER_JSON:
             users_dump = self.__load_users()
@@ -97,12 +113,19 @@ class Dataset():
         # Build list of features names
         themes_names = list({item.get("theme") for item in items_dump})
         places_names = list({item.get("place") for item in items_dump})
+        keywords = []
+        for item in items_dump:
+            if item.get('extracted_keywords'):
+                keywords.extend(item.get('extracted_keywords'))
+        keywords = list(set(keywords))
 
         # User features are a mix of themes, places and national
         self.user_features = themes_names + places_names + ["national"]
+        # Item features are a mix of themes, places, national and keywords
+        self.item_features = themes_names + places_names + ["national"] + keywords
         # Drop duplicates
         self.user_features = list(dict.fromkeys(self.user_features))
-        self.item_features = self.user_features
+        self.item_features = list(dict.fromkeys(self.item_features))
 
         # Extract items with valid structure
         self.items_list = items_list = self.__extract_items_from_local_dump(
@@ -149,8 +172,11 @@ class Dataset():
         # format: [(item1 , [feature1, feature2, ...]), ..]
         items_features_list = list()
         for item in self.items_list:
+            kwds = []
+            if item.get("extracted_keywords"):
+                kwds += item["extracted_keywords"]
             items_features_list.append(
-                (item["item_id"], [item["theme"], item["place"]]))
+                (item["item_id"], list(dict.fromkeys([item["theme"], item["place"]] + kwds))))
 
         self.uf_matrix = self.dataset.build_user_features(users_features_list)
         logger.info("Users features matrix has been built: %s" %
@@ -166,27 +192,79 @@ class Dataset():
         self.__store_dataset()
 
     def __load_items(self):
-        # Open json  file
-        f = open(os.getcwd() + '/' + FilePath.ITEM_JSON_PATH)
+        item_data = list()
 
-        # Read json file as python dictionary
-        item_data = json.load(f)
+        # Get item json schema
+        json_schema = self.__get_json_schema(FilePath.ITEM_SCHEMA_JSON_PATH)
 
-        # Close json file
-        f.close()
+        # Open json file
+        if os.path.isfile(os.getcwd() + '/' + FilePath.ITEM_JSON_PATH):
+            with open(os.getcwd() + '/' + FilePath.ITEM_JSON_PATH, 'r') as f:
+                # Read json file as python dictionary
+                try:
+                    item_data = json.load(f)
+                    if not item_data:
+                        raise KeyError()
+                except KeyError as ke:
+                    logger.error(f"Error when accessing source `{FilePath.ITEM_JSON_PATH}` file: {ke}")
+                    exit()
+                except json.JSONDecodeError as jde:
+                    logger.error(f"Error when decoding `{FilePath.ITEM_JSON_PATH}` file: {jde}")
+                    exit()
+
+        try:
+            validate(instance=item_data, schema=json_schema)
+        except jsonschema.ValidationError as ve:
+                logger.error(f"Error when validating json `{FilePath.ITEM_JSON_PATH}`: {ve}")
+                exit()
+
         return item_data
 
     def __load_users(self):
+        user_data = list()
+
+        # Get item json schema
+        json_schema = self.__get_json_schema(FilePath.USER_SCHEMA_JSON_PATH)
+
         # Open json  file
+        if os.path.isfile(os.getcwd() + '/' + FilePath.USER_JSON_PATH):
+            with open(os.getcwd() + '/' + FilePath.USER_JSON_PATH, 'r') as f:
+                # Read json file as python dictionary
+                try:
+                    user_data = json.load(f)
+                    if not user_data:
+                        raise KeyError()
+                except KeyError as ke:
+                    logger.error(f"Error when accessing source `{FilePath.USER_JSON_PATH}` file: {ke}")
+                    exit()
+                except json.JSONDecodeError as jde:
+                    logger.error(f"Error when decoding `{FilePath.USER_JSON_PATH}` file: {jde}")
+                    exit()
 
-        f = open(os.getcwd() + '/' + FilePath.USER_JSON_PATH)
+        try:
+            validate(instance=user_data, schema=json_schema)
+        except jsonschema.ValidationError as ve:
+                logger.error(f"Error when validating json `{FilePath.USER_JSON_PATH}`: {ve}")
+                exit()
 
-        # Read json file as python dictionary
-        user_data = json.load(f)
-
-        # Close json file
-        f.close()
         return user_data
+
+    def __get_json_schema(self, filename: str) -> dict:
+        if os.path.isfile(os.getcwd() + '/' + filename):
+            with open(os.getcwd() + '/' + filename, 'r') as f_schema:
+                try:
+                    json_schema = json.load(f_schema)
+                    if not json_schema:
+                        raise KeyError()
+                except KeyError as ke:
+                    logger.error(f"Error when accessing source `{filename}` file: {ke}")
+                    exit()
+                except json.JSONDecodeError as jde:
+                    logger.error(f"Error when decoding `{filename}` file: {jde}")
+                    exit()
+
+        return json_schema
+
 
     def __extract_items_from_local_dump(self, local_items_dump):
         '''
@@ -197,6 +275,8 @@ class Dataset():
         for item_dict in local_items_dump:
             if item_dict.get("entities") and item_dict.get("theme") and item_dict.get("place"):
                 items_list.append(item_dict)
+
+        logger.info(f"Number of dropped item: {len(local_items_dump) - len(items_list)}")
 
         return items_list
 
@@ -305,6 +385,35 @@ class Dataset():
         self.users_list = state[DatasetState.USERS_LIST]
         self.items_list = state[DatasetState.ITEMS_LIST]
         self.dataset = state[DatasetState.DATASET]
+
+
+    def __extract_keywords(self, items_dump):
+
+        # Load proper model
+        model = it_core_news_lg.load()
+
+        # For each item get extracted keywords
+        item_keywords = []
+        for item in items_dump:
+            keywords = list(set((self.__get_keywords(model, item.get('title')))))
+            item_keywords.append(keywords)
+
+        items_df = pd.DataFrame(items_dump)
+        items_df['extracted_keywords'] = item_keywords
+
+        return items_df.to_dict('records')
+
+
+    def __get_keywords(self, nlp_model, plain_text):
+        res = []
+        doc = nlp_model(plain_text)
+
+        # Recognized entities
+        if doc.ents:
+            for entity in doc.ents:
+                res.append(entity.text.lower())
+                
+        return res
 
 
     def build_fake_new_user_features(self, num_features: int = 10) -> list:
