@@ -4,14 +4,17 @@ from .models import StatusOut
 from .constants import ModelServiceUrls
 import asyncio
 from fastapi import HTTPException, status
+from . import recsys_interface
 
 
 class RecsysInterfaceService():
 
     async def get_model_service_status(self, client_session: ClientSession):
+        headers = {'access-token': recsys_interface.MODEL_SERVICE_API_KEY}
         try:
             async with client_session.get(
-                url=ModelServiceUrls.STATUS_URL
+                url=ModelServiceUrls.STATUS_URL,
+                headers=headers
             ) as response:
                 res = await response.json()
                 if response.status != status.HTTP_200_OK:
@@ -22,9 +25,11 @@ class RecsysInterfaceService():
 
 
     async def train_model(self, client_session: ClientSession):
+        headers = {'access-token': recsys_interface.MODEL_SERVICE_API_KEY}
         try:
             async with client_session.post(
-                url=ModelServiceUrls.TRAIN_URL
+                url=ModelServiceUrls.TRAIN_URL,
+                headers=headers
             ) as response:
                 res = await response.json()
                 if response.status != status.HTTP_202_ACCEPTED:
@@ -44,12 +49,13 @@ class RecsysInterfaceService():
         params = {
             'num_pred': num_pred
         }
-
+        headers = {'access-token': recsys_interface.MODEL_SERVICE_API_KEY}
         try:
             async with client_session.post(
                 url=ModelServiceUrls.RECS_USER_FEATURES_URL,
                 json=payload,
-                params=params
+                params=params,
+                headers=headers
             ) as response:
                 res = await response.json()
                 if response.status != status.HTTP_200_OK:
@@ -65,10 +71,12 @@ class RecsysInterfaceService():
         params = {
             'num_pred': num_pred
         }
+        headers = {'access-token': recsys_interface.MODEL_SERVICE_API_KEY}
         try:
             async with client_session.get(
                 url=ModelServiceUrls.RECS_USER_URL + str(user_id),
-                params=params
+                params=params,
+                headers=headers
             ) as response:
                 res = await response.json()
                 if response.status != status.HTTP_200_OK:
@@ -84,10 +92,12 @@ class RecsysInterfaceService():
         params = {
             'num_pred': num_pred
         }
+        headers = {'access-token': recsys_interface.MODEL_SERVICE_API_KEY}
         try:
             async with client_session.get(
                 url=ModelServiceUrls.RECS_ITEM_URL + str(item_id),
-                params=params
+                params=params,
+                headers=headers
             ) as response:
                 res = await response.json()
                 if response.status != status.HTTP_200_OK:

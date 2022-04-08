@@ -10,13 +10,17 @@ from starlette.requests import Request
 from fastapi.security.api_key import APIKeyHeader, APIKey
 from .util import logger
 
-'''
-Authentication
-'''
+
+# Authentication
 API_KEY = str()
 API_KEY_NAME = "access-token"
 
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+
+# Model Service Authentication
+MODEL_SERVICE_API_KEY = str()
+MODEL_SERVICE_API_KEY_NAME = "model-token"
 
 recsys_interface = APIRouter()
 
@@ -24,13 +28,16 @@ recsys_interface = APIRouter()
 async def startup():
     global API_KEY
     global API_KEY_NAME
+    global MODEL_SERVICE_API_KEY
+    global MODEL_SERVICE_API_KEY_NAME
 
     if os.path.exists("configuration.json") and os.path.isfile("configuration.json"):
         with open("configuration.json", "r") as configuration:
             try:
                 configuration = json.load(configuration)
                 API_KEY = configuration.get(API_KEY_NAME)
-                if not API_KEY:
+                MODEL_SERVICE_API_KEY = configuration.get(MODEL_SERVICE_API_KEY_NAME)
+                if (not API_KEY) or (not MODEL_SERVICE_API_KEY):
                     raise KeyError()
             except json.JSONDecodeError as json_decode_error:
                 logger.error(f"JSONDecodeError triggered at 'configuration.json' file loading: {json_decode_error}")
