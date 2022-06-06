@@ -350,6 +350,7 @@ MigrationBackup/
 .ionide/
 
 # Others
+configuration.json
 venv
 items_schema.json
 users_schema.json
