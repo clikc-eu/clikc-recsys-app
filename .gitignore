@@ -356,5 +356,6 @@ items_schema.json
 users_schema.json
 items.json
 users.json
+*.pem
 *.pickle
 .DS_Store
