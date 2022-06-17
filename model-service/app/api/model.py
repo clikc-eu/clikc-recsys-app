@@ -3,7 +3,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, Security, status
 from fastapi.security.api_key import APIKeyHeader, APIKey
 from .service import ModelService
-from .models import StatusOut, RecommendOut, StatusTrainingOut, UserFeaturesIn
+from .schemas import StatusOut, RecommendOut, StatusTrainingOut, UserFeaturesIn
 from .util import logger
 
 
