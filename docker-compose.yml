@@ -16,12 +16,14 @@ services:
     container_name: recsys_interface_service
 
   nginx:
-    image: nginx:latest
-    container_name: nginx_server
+    build: ./nginx-service
+    container_name: nginx_service
     ports:
       - "8080:8080"
     volumes:
-      - ./nginx_config.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx-service/nginx_config.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx-service/cert/dev_cert.pem:/etc/nginx/cert/dev_cert.pem
+      - ./nginx-service/cert/dev_key.pem:/etc/nginx/cert/dev_key.pem
     depends_on:
       - model_service
       - recsys_interface_service
