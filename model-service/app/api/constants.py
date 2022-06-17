@@ -57,3 +57,11 @@ class TrainingJob():
     JOB_ID = 'model_training_job'
     JOB_NAME = 'Train model each day'
 
+'''
+List of dynamic field types used in the translations of the Learning Units
+'''
+class DynamicFieldType():
+    PARAGRAPH = 'paragraph'
+    MEMORY_BOX = 'memory_box'
+    REFERENCE = 'reference'
+    LANGUAGE_POINT = 'language_point'
