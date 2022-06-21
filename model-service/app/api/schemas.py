@@ -56,3 +56,24 @@ class LearningUnit(BaseModel):
     skill: str
     eqf_level: str
     translations: List[Translation]
+
+'''
+Completed Learning Unit model
+'''
+class CompletedLearningUnit(BaseModel):
+    lu_id: str # Learning Unit identifier
+    result: float   # Result in percentage
+
+'''
+User model
+'''
+class User(BaseModel):
+    id: str
+    first_name: str
+    last_name: str
+    username: str
+    email: str
+    gender: str
+    eqf_levels: List[List[str]] # 3 clusters for each skill
+    fav_clusters: List[str] # 3 favourite clusters from assessment phase
+    completed_lus: List[CompletedLearningUnit]  # List of completed Learning Units
