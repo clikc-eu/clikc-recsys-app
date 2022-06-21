@@ -2,10 +2,14 @@
 This is the CLIKC Recommender System Application repository for development.
 It has been developed by using LightFM for the recommender part and FastAPI
 for the microservice part.
-It is composed by two microservices:
-- Model Service: related to the recommender system. It communicates with the Recsys Interface Service only (via Docker Compose ports configuration).
-- Recsys Interface Service: it receives requests and forwards them to the Model Service.
-Moreover a NGINX server is used.
+
+It is composed of two microservices:
+- Model microservice: related to the recommender system. It communicates with the Backend Interface microservice only (via Docker Compose ports configuration).
+- Backend Interface microservice: it receives requests and forwards them to the Model microservice. When it gets the recommendations it will send them to the application that made the request.
+Moreover a NGINX server is used as a reverse proxy. It represents the TLS termination point. Model and Backend Interface microservices are supposed to run inside the same host machine; so no TLS communication is provided here.
+In order to communicate with the Backend Interface microservice from the outside an authentication is required. This is performed by sending a token via the HTTP header.
+Communication between Model and Backend Interface microservice requires authentication; this is performed by sending a token via the HTTP header.
+
 Each microservice is delivered via Docker containers by using Docker Compose.
 
 ### How to run it
@@ -14,17 +18,19 @@ Each microservice is delivered via Docker containers by using Docker Compose.
 - Open the Terminal application here and run "docker-compose up -d".
 - In the end open your internet browser and open one of links here below.
 
-Note: for a fast usage go to http://localhost:8080/api/v1/recsys-interface/docs.
+WARNING: In order to run the project you need some configuration files which have not been uploaded to this repository.
 
-### Recsys Interface Service Endpoint (MUST USE THESE)
-- Go to http://localhost:8080/api/v1/recsys-interface/docs (GET) to get the documentation about.
-- Go to http://localhost:8080/api/v1/recsys-interface/status (GET) to get service status.
-- Go to http://localhost:8080/api/v1/recsys-interface/train (POST) to manually train the model of Model Service.
-- Go to http://localhost:8080/api/v1/recsys-interface/recommendations/user/{user_id} (GET) to get recommendations for a given user via its id.
-- Go to http://localhost:8080/api/v1/recsys-interface/recommendations/user/features (POST) to get recommendations for a new user given a list of features (features must belong to the dataset used during training).
-- Go to http://localhost:8080/api/v1/recsys-interface/recommendations/item/{item_id} (GET) to get similar items via cosine similarity.
+Note: for a fast usage go to https://localhost:8080/api/v1/recsys-interface/docs.
 
-### Model Service Endpoints (used INTERNALLY by Recsys Interface Service to communicate with Model Service)
+### Backend Interface microservice endpoints (MUST USE THESE)
+- Go to https://localhost:8080/api/v1/recsys-interface/docs (GET) to get the documentation about.
+- Go to https://localhost:8080/api/v1/recsys-interface/status (GET) to get service status.
+- Go to https://localhost:8080/api/v1/recsys-interface/train (POST) to manually train the model of Model Service.
+- Go to https://localhost:8080/api/v1/recsys-interface/recommendations/user/{user_id} (GET) to get recommendations for a given user via its id.
+- Go to https://localhost:8080/api/v1/recsys-interface/recommendations/user/features (POST) to get recommendations for a new user given a list of features (features must belong to the dataset used during training).
+- Go to https://localhost:8080/api/v1/recsys-interface/recommendations/item/{item_id} (GET) to get similar items via cosine similarity.
+
+### Model microservice Endpoints (used INTERNALLY by Backend Interface microservice to communicate with Model microservice)
 - http://localhost:8080/api/v1/model/docs (GET).
 - http://localhost:8080/api/v1/model/status (GET).
 - http://localhost:8080/api/v1/model/train (POST).
