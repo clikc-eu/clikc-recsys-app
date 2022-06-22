@@ -6,7 +6,7 @@ from ..constants import DataSource, FilePath
 from ..util.logger import logger
 
 
-def train_model(data_source: DataSource = DataSource.LOCAL_JSON):
+def train_model(data_source: DataSource = DataSource.LOCAL_DB_PICKLE):
     '''
     This method is needed in order to offer training functionality
     to the recommender system.

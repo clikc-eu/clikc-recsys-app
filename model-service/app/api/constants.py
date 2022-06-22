@@ -6,6 +6,7 @@ class FilePath():
 
     __LOCAL_DATASET_FOLDER_PATH = "local_dataset/"
 
+
     # Dataset pickle file
     DATASET_PICKLE_PATH = "dataset.pickle"
     TEMP_DATASET_PICKLE_PATH = "temp_dataset.pickle"
@@ -13,11 +14,20 @@ class FilePath():
     # Trained model pickle file
     TRAINED_MODEL_PICKLE_PATH = "trained_model.pickle"
 
-    # Local dataset items and users files
+    # TODO: REMOVE - Old Local dataset items and users files
     ITEM_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + "items.json"
-    USER_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + "users.json"
+    #USER_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + "users.json"
     ITEM_SCHEMA_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + "items_schema.json"
     USER_SCHEMA_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + "users_schema.json"
+
+    # TODO: TEMPORARY - Local dataset items and users files
+    __BASE_DATA_PATH = "base_data/"
+    BASE_LU_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + __BASE_DATA_PATH + "items.json"
+    BASE_USER_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + __BASE_DATA_PATH + "users.json"
+    LU_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + "learning_units_json.json"
+    USER_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + "users_json.json"
+    LU_PICKLE_PATH = __LOCAL_DATASET_FOLDER_PATH + "learning_units_pickle.pickle"
+    USER_PICKLE_PATH = __LOCAL_DATASET_FOLDER_PATH + "users_pickle.pickle"
 
     # Log file
     LOG_PATH = "main.log"
@@ -30,6 +40,7 @@ class DataSource(Enum):
     ONLINE_DB = 3
     LOCAL_USER_JSON = 4
     LOCAL_ON_DEMAND_USER = 5
+    LOCAL_DB_PICKLE = 6
 
 # Load/Store Dataset State
 class DatasetState():

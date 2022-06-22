@@ -1,9 +1,11 @@
 import json
 import os
+import pickle
 import random
+from typing import List
 from lightfm.data import Dataset as LightDataset
 import pandas as pd
-from ..constants import FilePath, DataSource, DatasetState
+from ..constants import DynamicFieldType, FilePath, DataSource, DatasetState
 from ..util.logger import logger
 from .load_store import store_fake_users_json, store_data, load_data
 import numpy as np
@@ -14,6 +16,9 @@ import jsonschema
 from jsonschema import validate
 from collections import Counter
 from string import punctuation
+from ..util.lu_generator import generate_learning_units
+from ..util.user_generator import generate_users
+from ..schemas import DynamicField, LearningUnit, Translation
 
 
 
@@ -21,7 +26,8 @@ class Dataset():
     '''
     This dataset class has to be used in order to train the recommender.
 
-    - use 'build_from_local_json()' in order to use data from local json file(s).
+    - TO BE REMOVED: use 'build_from_local_json()' in order to use data from local json file(s).
+    - use 'build_from_local_db_pickle()' in order to build the dataset from local pickle file(s).
     - use 'build_from_online_db()' in order to use data fetched from the
     remote database.
     '''
@@ -63,8 +69,20 @@ class Dataset():
 
         # On Dataset Building delete old dataset and trained model pickle files if necessary
         # depending on data_source
-        if data_source == DataSource.LOCAL_JSON:
+        if data_source == DataSource.LOCAL_DB_PICKLE:
+            # Load users, learning units and interactions
+            # from local pickle files
 
+            # Delete the old dataset if exists
+            if os.path.isfile(FilePath.TEMP_DATASET_PICKLE_PATH):
+                os.remove(FilePath.TEMP_DATASET_PICKLE_PATH)
+            
+            logger.info("Building dataset from local dump.")
+
+            self.__build_from_local_db_pickle()
+
+        elif data_source == DataSource.LOCAL_JSON:
+            # TODO: Old - To be removed after dataset switch
             if os.path.isfile(FilePath.TEMP_DATASET_PICKLE_PATH):
                 os.remove(FilePath.TEMP_DATASET_PICKLE_PATH)
 
@@ -83,12 +101,43 @@ class Dataset():
 
         logger.info("Dataset ready.")
 
+    '''
+    This method builds a dataset starting from local pickle files
+    '''
+    def __build_from_local_db_pickle(self):
+        
+        logger.info("Preparing learning units local dump.")
 
-    def __build_from_online_db():
+        # Load learning units data from pickle file
+        lus_dump = self.__load_lus()
+
+        logger.info("Extracting keywords to enrich learning units local dump.")
+
+        # Upgrade learning units dump with extracted keywords
+        # Some learning units might not have any keywords
+
+        # lus_dump is now a dictionary
+        lus_dump = self.__extract_keywords(lus_dump)
+
+        logger.info("Keywords successfully extracted. Learning Units ready.")
+
+        # Load users data from pickle file
+        # lus_dump is a dictionary
+        logger.info("Preparing users local dump.")
+        users_dump = self.__load_users()
+
+        logger.info("Users successfully extracted.")
+
+    '''
+    This method build a dataset starting from online DB
+    '''
+    def __build_from_online_db(self):
         # TODO: Load from db using repository methods
         pass
 
-
+    '''
+    TO BE REMOVED: This method builds a dataset starting from local pickle files
+    '''
     def __build_from_local_json(self, user_data_source=DataSource.LOCAL_ON_DEMAND_USER):
         '''
         By default generate new users. JSON usage must be specified
@@ -191,6 +240,33 @@ class Dataset():
         # store produced data on disk
         self.__store_dataset()
 
+    '''
+    This method reads learning units from a local pickle file.
+    In case the pickle file does not exist it builds the pickle file
+    starting from a basic json file.
+    '''
+    def __load_lus(self):
+        
+        lus_data = list()
+
+        if os.path.isfile(os.getcwd() + '/' + FilePath.LU_PICKLE_PATH):
+            logger.info("Loading learning units from pickle file.")
+            lus_data = load_data(os.getcwd() + '/' + FilePath.LU_PICKLE_PATH)
+        else:
+            logger.info("Generating learning units from scratch.")
+
+            lus_data = generate_learning_units()
+
+            # save as pickle
+            with open(os.getcwd() + '/' + FilePath.LU_PICKLE_PATH, 'wb') as fle:
+                pickle.dump(lus_data, fle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        return lus_data
+
+
+    '''
+    TO BE REMOVED: This method reads items from a local json file
+    '''
     def __load_items(self):
         item_data = list()
 
@@ -220,50 +296,79 @@ class Dataset():
 
         return item_data
 
+    '''
+    This method reads user data from a local pickle file.
+    In case the pickle file does not exist it builds the pickle file
+    starting from a basic json file.
+    '''
     def __load_users(self):
+
+        user_json = list()
         user_data = list()
 
-        # Get item json schema
-        json_schema = self.__get_json_schema(FilePath.USER_SCHEMA_JSON_PATH)
+        if os.path.isfile(os.getcwd() + '/' + FilePath.USER_PICKLE_PATH):
+            logger.info("Loading users from pickle file.")
+            user_data = load_data(os.getcwd() + '/' + FilePath.USER_PICKLE_PATH)
+            user_json = pd.DataFrame.from_records([user.dict() for user in user_data]).to_dict('records')
+        else:
+            logger.info("Generating users from scratch.")
 
-        # Open json  file
-        if os.path.isfile(os.getcwd() + '/' + FilePath.USER_JSON_PATH):
-            with open(os.getcwd() + '/' + FilePath.USER_JSON_PATH, 'r') as f:
-                # Read json file as python dictionary
-                try:
-                    user_data = json.load(f)
-                    if not user_data:
-                        raise KeyError()
-                except KeyError as ke:
-                    logger.error(f"Error when accessing source `{FilePath.USER_JSON_PATH}` file: {ke}")
-                    exit()
-                except json.JSONDecodeError as jde:
-                    logger.error(f"Error when decoding `{FilePath.USER_JSON_PATH}` file: {jde}")
-                    exit()
+            user_json, user_data = generate_users()
+            # save as json
+            with open(os.getcwd() + '/' + FilePath.USER_JSON_PATH, 'w') as f:
+                json.dump(user_json, f)
 
-        try:
-            validate(instance=user_data, schema=json_schema)
-        except jsonschema.ValidationError as ve:
-                logger.error(f"Error when validating json `{FilePath.USER_JSON_PATH}`: {ve}")
-                exit()
+            # save as pickle
+            with open(os.getcwd() + '/' + FilePath.USER_PICKLE_PATH, 'wb') as fle:
+                pickle.dump(user_data, fle, protocol=pickle.HIGHEST_PROTOCOL)
 
-        return user_data
+        return user_json
 
-    def __get_json_schema(self, filename: str) -> dict:
-        if os.path.isfile(os.getcwd() + '/' + filename):
-            with open(os.getcwd() + '/' + filename, 'r') as f_schema:
-                try:
-                    json_schema = json.load(f_schema)
-                    if not json_schema:
-                        raise KeyError()
-                except KeyError as ke:
-                    logger.error(f"Error when accessing source `{filename}` file: {ke}")
-                    exit()
-                except json.JSONDecodeError as jde:
-                    logger.error(f"Error when decoding `{filename}` file: {jde}")
-                    exit()
+    # TODO: To be removed - old method to load users from json file
+    # def __load_users(self):
+    #     user_data = list()
 
-        return json_schema
+    #     # Get item json schema
+    #     json_schema = self.__get_json_schema(FilePath.USER_SCHEMA_JSON_PATH)
+
+    #     # Open json  file
+    #     if os.path.isfile(os.getcwd() + '/' + FilePath.USER_JSON_PATH):
+    #         with open(os.getcwd() + '/' + FilePath.USER_JSON_PATH, 'r') as f:
+    #             # Read json file as python dictionary
+    #             try:
+    #                 user_data = json.load(f)
+    #                 if not user_data:
+    #                     raise KeyError()
+    #             except KeyError as ke:
+    #                 logger.error(f"Error when accessing source `{FilePath.USER_JSON_PATH}` file: {ke}")
+    #                 exit()
+    #             except json.JSONDecodeError as jde:
+    #                 logger.error(f"Error when decoding `{FilePath.USER_JSON_PATH}` file: {jde}")
+    #                 exit()
+
+    #     try:
+    #         validate(instance=user_data, schema=json_schema)
+    #     except jsonschema.ValidationError as ve:
+    #             logger.error(f"Error when validating json `{FilePath.USER_JSON_PATH}`: {ve}")
+    #             exit()
+
+    #     return user_data
+
+    # def __get_json_schema(self, filename: str) -> dict:
+    #     if os.path.isfile(os.getcwd() + '/' + filename):
+    #         with open(os.getcwd() + '/' + filename, 'r') as f_schema:
+    #             try:
+    #                 json_schema = json.load(f_schema)
+    #                 if not json_schema:
+    #                     raise KeyError()
+    #             except KeyError as ke:
+    #                 logger.error(f"Error when accessing source `{filename}` file: {ke}")
+    #                 exit()
+    #             except json.JSONDecodeError as jde:
+    #                 logger.error(f"Error when decoding `{filename}` file: {jde}")
+    #                 exit()
+
+    #     return json_schema
 
 
     def __extract_items_from_local_dump(self, local_items_dump):
@@ -386,24 +491,46 @@ class Dataset():
         self.items_list = state[DatasetState.ITEMS_LIST]
         self.dataset = state[DatasetState.DATASET]
 
-
-    def __extract_keywords(self, items_dump):
+    '''
+    This method enriches learning units dump with extracted
+    keywords via named entity recognition
+    '''
+    def __extract_keywords(self, lus_dump: List[LearningUnit]):
 
         # Load proper model
         model = it_core_news_lg.load()
 
-        # For each item get extracted keywords
-        item_keywords = []
-        for item in items_dump:
-            keywords = list(set((self.__get_keywords(model, item.get('title')))))
-            item_keywords.append(keywords)
+        # For each learning unit get extracted keywords
+        lu_keywords = []
+        for lu in lus_dump:
+            # Take just english translation
+            translation = list(filter(lambda t: t.language_name=="en", lu.translations))[0]
+            plain_text = translation.title
+            plain_text += " " + translation.subtitle
+            plain_text += " " + translation.introduction
+            plain_text += " " + translation.text_area
 
-        items_df = pd.DataFrame(items_dump)
-        items_df['extracted_keywords'] = item_keywords
+            # Take all dynamic fields of type paragraph, memory box, reference and language point
+            dynamic_fields = list(filter(lambda f: f.type==DynamicFieldType.PARAGRAPH or f.type==DynamicFieldType.MEMORY_BOX or f.type==DynamicFieldType.REFERENCE or f.type==DynamicFieldType.LANGUAGE_POINT, translation.dynamic_fields))
+            for field in dynamic_fields:
+                plain_text += " " + field.content
+            
+            keywords = list(set((self.__get_keywords(model, plain_text))))
+            lu_keywords.append(keywords)
 
-        return items_df.to_dict('records')
+        lus_df = pd.DataFrame.from_records([lu.dict() for lu in lus_dump])
+        lus_df['extracted_keywords'] = lu_keywords
+        lus_dict = lus_df.to_dict('records')
 
+        # save as json
+        with open(os.getcwd() + '/' + FilePath.LU_JSON_PATH, 'w') as f:
+            json.dump(lus_dict, f)
 
+        return lus_dict
+
+    '''
+    This method gets keywords via named entity recognition from a plain text
+    '''
     def __get_keywords(self, nlp_model, plain_text):
         res = []
         doc = nlp_model(plain_text)
