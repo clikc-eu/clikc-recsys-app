@@ -109,24 +109,107 @@ class Dataset():
         logger.info("Preparing learning units local dump.")
 
         # Load learning units data from pickle file
-        lus_dump = self.__load_lus()
+        items_dump = self.__load_lus()
 
         logger.info("Extracting keywords to enrich learning units local dump.")
 
         # Upgrade learning units dump with extracted keywords
         # Some learning units might not have any keywords
 
-        # lus_dump is now a dictionary
-        lus_dump = self.__extract_keywords(lus_dump)
+        # items_dump is now a dictionary
+        items_dump = self.__extract_keywords(items_dump)
 
         logger.info("Keywords successfully extracted. Learning Units ready.")
 
         # Load users data from pickle file
-        # lus_dump is a dictionary
+        # users_dump is a dictionary
         logger.info("Preparing users local dump.")
         users_dump = self.__load_users()
 
         logger.info("Users successfully extracted.")
+
+        # Build list of all features by using skill:cluster:eqf (encoded) and keywords
+        skill_cluster_eqf = list({'skill:' + lu.get('skill') + '-' + 'cluster:' + lu.get('cluster_number') + '-' + 'eqf:' + lu.get('eqf_level') for lu in items_dump})
+        keywords = []
+        for lu in items_dump:
+            if lu.get('extracted_keywords'):
+                keywords.extend(lu.get('extracted_keywords'))
+            if lu.get('translations')[0].get('keywords'):
+                keywords.extend(lu.get('translations')[0].get('keywords'))
+            
+        keywords = list(set(keywords))
+
+        # User features are the eqf levels registered for each cluster of each skill
+        self.user_features = skill_cluster_eqf
+        # Learning unit features are a mix of hand written keywords, extracted keywords and the assigned skill/cluster/eqf
+        self.item_features = skill_cluster_eqf + keywords
+
+        # Drop duplicates
+        self.user_features = list(dict.fromkeys(self.user_features))
+        self.item_features = list(dict.fromkeys(self.item_features))
+
+        self.items_list = items_dump
+        self.users_list = users_dump
+
+        # Dataset creation
+        # It builds the ID mappings: https://making.lyst.com/lightfm/docs/examples/dataset.html#building-the-id-mappings
+        #
+        # We have to create a mapping between user and item ids
+        # of our input data and the indices that will be used internally by our model.
+        # Also mappings for user and item features are created.
+        self.dataset.fit(
+            ([user["id"] for user in self.users_list]),
+            ([item["identifier"] for item in self.items_list]),
+            user_features=self.user_features,
+            item_features=self.item_features
+        )
+
+        # Building the interaction matrix
+        #
+        # parameter: (iterable of (user_id, item_id) or (user_id, item_id, weight))
+        #
+        # https://making.lyst.com/lightfm/docs/lightfm.data.html#lightfm.data.Dataset.build_interactions
+        self.interactions = self.__build_interactions_matrix(self.users_list)
+
+        # Building the items and users feature matrixes
+        # format: [(user1 , [feature1, feature2, ...]), ..]
+        users_features_list = list()
+        for user in self.users_list:
+            user_skill_cluster_eqf = list()
+            for skill in range(4):
+                for cluster in range(3):
+                    user_skill_cluster_eqf.append(f"skill:{str(skill + 1)}-cluster:{str(cluster + 1)}-eqf:{str(user['eqf_levels'][skill][cluster])}")
+            
+            users_features_list.append(
+                (user["id"], user_skill_cluster_eqf))
+
+        # format: [(item1 , [feature1, feature2, ...]), ..]
+        items_features_list = list()
+        for item in self.items_list:
+
+            kwds = []
+
+            if item.get("extracted_keywords"):
+                kwds += item["extracted_keywords"]
+
+            if item.get('translations')[0].get('keywords'):
+                kwds.extend(item.get('translations')[0].get('keywords'))    
+            
+            items_features_list.append(
+                (item["identifier"], list(kwds) + [f"skill:{item['skill']}-cluster:{item['cluster_number']}-eqf:{item['eqf_level']}"]))
+
+        self.uf_matrix = self.dataset.build_user_features(users_features_list)
+        logger.info("Users features matrix has been built: %s" %
+                    repr(self.uf_matrix))
+
+        self.if_matrix = self.dataset.build_item_features(items_features_list)
+        logger.info("Items (Learning Units) features matrix has been built: %s" %
+                    repr(self.if_matrix))
+
+        logger.info("Dataset with IDs mappings has been built from local data.")
+
+        # store produced data on disk
+        self.__store_dataset()
 
     '''
     This method build a dataset starting from online DB
@@ -398,8 +481,8 @@ class Dataset():
         '''
         user_item_interactions = set()
         for user in users_with_items_interactions:
-            for item_id in user["interactions"]:
-                user_item_interactions.add((user["user_id"], item_id))
+            for lu in user["completed_lus"]:
+                user_item_interactions.add((user["id"], lu["lu_id"]))
 
         (interactions, _) = self.dataset.build_interactions(
             user_item_interactions)
@@ -465,6 +548,12 @@ class Dataset():
 
         return users_list
 
+
+    '''
+    This method prepares a dictionary named "state", containing
+    all the dataset data built, and stores it on disk in order
+    to be loaded later.
+    '''
     def __store_dataset(self):
         state = {
             DatasetState.INTERACTIONS: self.interactions,
