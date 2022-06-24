@@ -13,40 +13,47 @@ from fastapi import HTTPException, status
 '''
     This functionality performs a prediction for
     a known user given its ID.
-    The first 'num_pred' predictions are returned
-    sorted by their score (default is 10).
+    "last_lu_id" represents the id of the last Learning Unit
+    viewed by the user. -1 means that we have to provide recommendations
+    after the self-assessment phase.
+    The first 3 predictions are returned
+    sorted by their score.
 '''
-def predict_for_user(user_id: int, num_pred: int):
+def predict_for_user(user_id: int, last_item_id: str):
 
     # Check if model has been trained
     if check_trained_model() == False:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail='Model Not Already Trained.')
 
-    # Check for num_pred >0
-    if num_pred < 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail='\'num_pred\' must be > 0.')
-
     # Assume model and dataset stored as pickle file
     dataset = Dataset(data_source=DataSource.PICKLE)
     model = load_data(FilePath.TRAINED_MODEL_PICKLE_PATH)
+
+    # Check if last_lu_id is valid: the id must be found in the set of all the items
+    # -1 is allowed for the moment after self-assessment phase
+    if int(last_item_id)!= -1 and len(list(filter(lambda item: item['identifier'] == last_item_id, dataset.items_list))) == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'Item With ID={last_item_id} Not Found.')
 
     # Check if user_id is valid
     if len(list(filter(lambda user: user['id'] == str(user_id), dataset.users_list))) == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'User With ID={user_id} Not Found.')
 
-    # Check if num_pred is less than the overall number of items
-    if num_pred > len(dataset.items_list):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail='Number Of Requested Predictions Exceeds The Number Of Items')
-
     num_items = len(dataset.items_list)
 
-    # Map external id to internal dataset id
+    # Map external user id to internal dataset id
     internal_user_id = map_id_external_to_internal(
         dataset=dataset.dataset, external_id=str(user_id), id_type=MappingType.USER_ID_TYPE)
+
+    # Map external item id to internal dataset id
+    # TODO: use this id later for pipeline implementation
+    # TODO: register this id into history of user completed Learning Units
+    if int(last_item_id) != -1:
+        last_item_internal_id = map_id_external_to_internal(
+            dataset=dataset.dataset, external_id=last_item_id, id_type=MappingType.ITEM_ID_TYPE)
+
 
     # Get items the user has not interacted with - shape: [{"lu_id": "370", "result": 0.7775328675422801}, ...]
     item_with_interaction_ids = list(filter(
@@ -63,7 +70,10 @@ def predict_for_user(user_id: int, num_pred: int):
     predictions = model.predict(internal_user_id, np.arange(num_items), user_features=dataset.uf_matrix,
                                 item_features=dataset.if_matrix)
 
-    return sort_predictions(predictions=predictions, num_pred=num_pred, dataset=dataset, id_type=MappingType.ITEM_ID_TYPE, prediction_type=PredictionType.ITEMS_FOR_USER, item_with_no_interaction_ids=item_with_no_interaction_ids)
+
+    default_num_pred = 3
+
+    return sort_predictions(predictions=predictions, num_pred=default_num_pred, dataset=dataset, id_type=MappingType.ITEM_ID_TYPE, prediction_type=PredictionType.ITEMS_FOR_USER, item_with_no_interaction_ids=item_with_no_interaction_ids)
 
 '''
     This functionality performs predictions for a user with zero interactions

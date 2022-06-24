@@ -17,6 +17,10 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 model = APIRouter()
 
+
+'''
+This function loads a configuration file at startup
+'''
 @model.on_event("startup")
 async def startup():
     global API_KEY
@@ -76,14 +80,15 @@ def get_recommendations_for_new_user(user_features: UserFeaturesIn, num_pred: in
     return ModelService().get_recommendations_for_new_user(user_features=user_features.user_features, num_pred=num_pred)    
 
 '''
-    TODO: TO BE MERGED INTO RECOMMENDATIONS PIPELINE
-    This endpoint allows us to obtain recommendations for a given user given its id 'user_id'.
-    It is possible to specify the number of predictions to obtain via query parameter 'num_pred'.
+This endpoint allows us to obtain recommendations for a given user given its id 'user_id'.
+It is possible to specify the last Learning Unit id via query parameter 'last_lu_id'.
+Default value is -1. It means that the first Learning Unit, after the self assessment phase,
+must be recommended.
 '''
 @model.get('/recommendations/user/{user_id}', response_model=RecommendOut, status_code=status.HTTP_200_OK)
-def get_recommendations_for_user(user_id: int, num_pred: int = 100, api_key: APIKey = Depends(authentication)):
+def get_recommendations_for_user(user_id: int, last_lu_id: int = -1, api_key: APIKey = Depends(authentication)):
 
-    return ModelService().get_recommendations_for_user(user_id=user_id, num_pred=num_pred)
+    return ModelService().get_recommendations_for_user(user_id=user_id, last_lu_id=str(last_lu_id))
 
 
 '''
