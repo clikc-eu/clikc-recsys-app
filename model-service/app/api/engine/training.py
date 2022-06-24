@@ -5,12 +5,13 @@ from .load_store import store_data, move_data
 from ..constants import DataSource, FilePath
 from ..util.logger import logger
 
-
-def train_model(data_source: DataSource = DataSource.LOCAL_JSON):
-    '''
-    This method is needed in order to offer training functionality
-    to the recommender system.
-    '''
+'''
+This is a wrapper function that builds LightFM Dataset
+and then it train a LightFM model. In the end
+the model is stored on disk
+'''
+def train_model(data_source: DataSource = DataSource.LOCAL_DB_PICKLE):
+    
     logger.info("Training request.")
 
     dataset = Dataset(data_source=data_source)
@@ -28,15 +29,17 @@ def train_model(data_source: DataSource = DataSource.LOCAL_JSON):
 
     logger.info("Model stored on disk.")
 
-
+'''
+This function checks if a pickle file containing a trained
+LightFM model exists
+'''
 def check_trained_model():
     return os.path.isfile(FilePath.TRAINED_MODEL_PICKLE_PATH)
 
-
+'''
+This function trains and returns a LightFM model
+'''
 def train(interactions, user_features_matrix, item_features_matrix):
-    '''
-    This function trains and returns a model.
-    '''
 
     # Build the model with using hyper-parameters
     # https://making.lyst.com/lightfm/docs/lightfm.html

@@ -350,6 +350,9 @@ MigrationBackup/
 .ionide/
 
 # Others
+local_dataset/
+lu_generator.py
+user_generator.py
 configuration.json
 venv
 items_schema.json

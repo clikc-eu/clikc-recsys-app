@@ -2,7 +2,7 @@ import datetime
 from fastapi import HTTPException, status
 from typing import List
 from .engine import training, prediction
-from .models import RecommendOut, StatusOut, StatusTrainingOut
+from .schemas import RecommendOut, StatusOut, StatusTrainingOut
 from .constants import TrainingJob
 from app import main
 from apscheduler.schedulers import base

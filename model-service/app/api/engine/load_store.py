@@ -1,16 +1,6 @@
-import json
 import os
 import pickle
 import shutil
-from ..constants import FilePath
-
-
-def store_fake_users_json(data, sorting_key: str):
-
-    sorted_data = sorted(data, key=lambda x: x[sorting_key])
-
-    with open(FilePath.USER_JSON_PATH, 'w') as fout:
-        json.dump(sorted_data, fout)
 
 
 def store_data(data, filename):
