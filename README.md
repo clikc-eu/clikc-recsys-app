@@ -18,9 +18,15 @@ Each microservice is delivered via Docker containers by using Docker Compose.
 - Open the Terminal application here and run "docker-compose up -d".
 - In the end open your internet browser and open one of links here below.
 
-WARNING: In order to run the project you need some configuration files which have not been uploaded to this repository.
+#### Random mode (JUST IN CASE)
+If necessary, the recommendation system can be started in "random" mode. This mode allows you to provide recommendations randomly.
+To do this you need to open the "configuration.json" file (not included in this repository), in click-recsys-app -> model-service, and set the "random_mode" field to "true". Then start the recommendation system as previously described.
 
-Note: for a fast usage go to https://localhost:8080/api/v1/recsys-interface/docs.
+#### WARNING
+In order to run the project you need some configuration files which have not been uploaded to this repository.
+
+#### Note:
+For a fast usage go to https://localhost:8080/api/v1/recsys-interface/docs.
 
 ### Backend Interface microservice endpoints (MUST USE THESE)
 - Go to https://localhost:8080/api/v1/recsys-interface/docs (GET) to get the documentation about.
