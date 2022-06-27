@@ -68,3 +68,11 @@ class DynamicFieldType():
     MEMORY_BOX = 'memory_box'
     REFERENCE = 'reference'
     LANGUAGE_POINT = 'language_point'
+
+
+'''
+List of configuration keys contained in "configuration.json" file
+'''
+class JsonConfig():
+    RANDOM_MODE_NAME = 'random_mode' # Used to start the microservice with random recommendations
+    API_KEY_NAME = 'access-token'    # Used to get the api key used in the authentication header

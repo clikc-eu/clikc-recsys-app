@@ -1,3 +1,4 @@
+import random
 from typing import List
 from lightfm import LightFM
 import pandas as pd
@@ -9,6 +10,7 @@ from ..constants import DataSource, FilePath, MappingType, PredictionType
 import numpy as np
 from lightfm.data import Dataset as LightDataset
 from fastapi import HTTPException, status
+from ..repository import learning_unit as lu_repository, user as user_repository
 
 '''
     This functionality performs a prediction for
@@ -18,64 +20,122 @@ from fastapi import HTTPException, status
     after the self-assessment phase.
     The first 3 predictions are returned
     sorted by their score.
+    When random_mode == True, recommendations are given randomly.
 '''
-def predict_for_user(user_id: int, last_item_id: str):
+def predict_for_user(user_id: int, last_item_id: str, random_mode: bool):
 
-    # Check if model has been trained
-    if check_trained_model() == False:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail='Model Not Already Trained.')
+    if random_mode == True:
+        # Recommendations made randomly
 
-    # Assume model and dataset stored as pickle file
-    dataset = Dataset(data_source=DataSource.PICKLE)
-    model = load_data(FilePath.TRAINED_MODEL_PICKLE_PATH)
+        item_data = lu_repository.get_all()
 
-    # Check if last_lu_id is valid: the id must be found in the set of all the items
-    # -1 is allowed for the moment after self-assessment phase
-    if int(last_item_id)!= -1 and len(list(filter(lambda item: item['identifier'] == last_item_id, dataset.items_list))) == 0:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'Item With ID={last_item_id} Not Found.')
+        # Items as Python dictionary
+        items = pd.DataFrame.from_records([item.dict() for item in item_data]).to_dict('records')
 
-    # Check if user_id is valid
-    if len(list(filter(lambda user: user['id'] == str(user_id), dataset.users_list))) == 0:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'User With ID={user_id} Not Found.')
+        # Users as Python dictionary
+        # TODO: get users from online DB
+        users = user_repository.get_all()
 
-    num_items = len(dataset.items_list)
+        # Check if last item id is a valid id. -1 is allowed (user with zero interactions)
+        check_valid_item(last_item_id, items)
 
-    # Map external user id to internal dataset id
-    internal_user_id = map_id_external_to_internal(
-        dataset=dataset.dataset, external_id=str(user_id), id_type=MappingType.USER_ID_TYPE)
+        # Check if user_id is valid
+        check_valid_user(user_id, users)
 
-    # Map external item id to internal dataset id
-    # TODO: use this id later for pipeline implementation
-    # TODO: register this id into history of user completed Learning Units
-    if int(last_item_id) != -1:
-        last_item_internal_id = map_id_external_to_internal(
-            dataset=dataset.dataset, external_id=last_item_id, id_type=MappingType.ITEM_ID_TYPE)
+        # TODO: Update user Learning Unit history with last_item_id
+
+        # Get items the user has not interacted with - shape: [{"lu_id": "370", "result": 0.7775328675422801}, ...]
+        item_with_no_interaction_ids = get_item_with_no_interaction_ids(user_id, items, users)
+
+        random.shuffle(item_with_no_interaction_ids)
+
+        # TODO: Use Learning Path rules (eqf, etc..)
+
+        # Return firs three elements
+        return item_with_no_interaction_ids[0:3]
+    else:  
+        # Check if model has been trained
+        if check_trained_model() == False:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail='Model Not Already Trained.')
+
+        # Assume model and dataset stored as pickle file
+        dataset = Dataset(data_source=DataSource.PICKLE)
+        model = load_data(FilePath.TRAINED_MODEL_PICKLE_PATH)
+
+        # Check if last item id is a valid id. -1 is allowed (user with zero interactions)
+        check_valid_item(last_item_id, dataset.items_list)
+
+        # Check if user_id is valid
+        check_valid_user(user_id, dataset.users_list)
+
+        # TODO: Update user Learning Unit history with last_item_id
+
+        num_items = len(dataset.items_list)
+
+        # Map external user id to internal dataset id
+        internal_user_id = map_id_external_to_internal(
+            dataset=dataset.dataset, external_id=str(user_id), id_type=MappingType.USER_ID_TYPE)
+
+        # Map external item id to internal dataset id
+        # if int(last_item_id) != -1:
+        #     last_item_internal_id = map_id_external_to_internal(
+        #         dataset=dataset.dataset, external_id=last_item_id, id_type=MappingType.ITEM_ID_TYPE)
 
 
-    # Get items the user has not interacted with - shape: [{"lu_id": "370", "result": 0.7775328675422801}, ...]
+        # Get items the user has not interacted with - shape: [{"lu_id": "370", "result": 0.7775328675422801}, ...]
+        # Use updated online data
+        item_with_no_interaction_ids = get_item_with_no_interaction_ids(user_id, dataset.items_list, dataset.users_list)
+
+        predictions = model.predict(internal_user_id, np.arange(num_items), user_features=dataset.uf_matrix,
+                                    item_features=dataset.if_matrix)
+
+        # TODO: Apply learning path rules
+        default_num_pred = 3
+
+        return sort_predictions(predictions=predictions, num_pred=default_num_pred, dataset=dataset, id_type=MappingType.ITEM_ID_TYPE, prediction_type=PredictionType.ITEMS_FOR_USER, item_with_no_interaction_ids=item_with_no_interaction_ids)
+
+'''
+This function returns the item ids the
+user has not interacted with.
+'''
+def get_item_with_no_interaction_ids(user_id, items, users):
     item_with_interaction_ids = list(filter(
-        lambda user: user['id'] == str(user_id), dataset.users_list))[0].get('completed_lus')
+            lambda user: user['id'] == str(user_id), users))[0].get('completed_lus')
 
     item_with_interaction_ids = set([lu["lu_id"] for lu in item_with_interaction_ids])
 
     all_item_ids = set([item['identifier']
-                        for item in dataset.items_list])
+                            for item in items])
 
     item_with_no_interaction_ids = list(
-        all_item_ids - item_with_interaction_ids)
-
-    predictions = model.predict(internal_user_id, np.arange(num_items), user_features=dataset.uf_matrix,
-                                item_features=dataset.if_matrix)
-
-
-    default_num_pred = 3
-
-    return sort_predictions(predictions=predictions, num_pred=default_num_pred, dataset=dataset, id_type=MappingType.ITEM_ID_TYPE, prediction_type=PredictionType.ITEMS_FOR_USER, item_with_no_interaction_ids=item_with_no_interaction_ids)
+            all_item_ids - item_with_interaction_ids)
+        
+    return item_with_no_interaction_ids
 
 '''
+This function checks if user_id is in users list.
+If not it triggers an exception.
+'''
+def check_valid_user(user_id, users):
+    if len(list(filter(lambda user: user['id'] == str(user_id), users))) == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail=f'User With ID={user_id} Not Found.')
+
+'''
+This function checks if last_lu_id is valid: 
+the id must be found in the set of all the items.
+-1 value is allowed for the moment after self-assessment phase.
+If last_item_id is not valid it triggers an exception.
+'''
+def check_valid_item(last_item_id, items):
+    
+    if int(last_item_id)!= -1 and len(list(filter(lambda item: item['identifier'] == last_item_id, items))) == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'Item With ID={last_item_id} Not Found.')
+
+'''
+    TODO: TO BE REMOVED
     This functionality performs predictions for a user with zero interactions
     given the input features.
     fake_features_generation generates this list randomly (for test purposes).
@@ -134,6 +194,7 @@ def predict_for_new_user(user_features: List[str], num_pred: int, fake_features_
     return sort_predictions(predictions=predictions, num_pred=num_pred, dataset=dataset, id_type=MappingType.ITEM_ID_TYPE, prediction_type=PredictionType.ITEMS_FOR_UNKNOWN_USER)
 
 '''
+    TODO: TO BE MERGED IN PIPELINE
     This functionality performs predictions for a given item (items similar to this item)
     via Cosine Similarity.
     The first 'num_pred' predictions are returned

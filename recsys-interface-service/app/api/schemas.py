@@ -8,6 +8,7 @@ class UserFeaturesIn(BaseModel):
 class StatusOut(BaseModel):
     server_on: bool
     model_trained: bool
+    random_mode_on: bool
 
 
 class StatusTrainingOut(BaseModel):
