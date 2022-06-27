@@ -36,16 +36,17 @@ def predict_for_user(user_id: int, last_item_id: str, random_mode: bool):
         # TODO: get users from online DB
         users = user_repository.get_all()
 
-        # Check if last item id is a valid id. -1 is allowed (user with zero interactions)
-        check_valid_item(last_item_id, items)
-
         # Check if user_id is valid
-        check_valid_user(user_id, users)
+        user = check_valid_user(user_id, users)
+
+        # Check if last item id is a valid id. -1 is allowed (user with zero interactions)
+        check_valid_item(last_item_id, items, user)
+
 
         # TODO: Update user Learning Unit history with last_item_id
 
         # Get items the user has not interacted with - shape: [{"lu_id": "370", "result": 0.7775328675422801}, ...]
-        item_with_no_interaction_ids = get_item_with_no_interaction_ids(user_id, items, users)
+        item_with_no_interaction_ids = get_item_with_no_interaction_ids(items, user)
 
         random.shuffle(item_with_no_interaction_ids)
 
@@ -63,11 +64,12 @@ def predict_for_user(user_id: int, last_item_id: str, random_mode: bool):
         dataset = Dataset(data_source=DataSource.PICKLE)
         model = load_data(FilePath.TRAINED_MODEL_PICKLE_PATH)
 
-        # Check if last item id is a valid id. -1 is allowed (user with zero interactions)
-        check_valid_item(last_item_id, dataset.items_list)
-
         # Check if user_id is valid
-        check_valid_user(user_id, dataset.users_list)
+        user = check_valid_user(user_id, dataset.users_list)
+
+        # Check if last item id is a valid id. -1 is allowed (user with zero interactions)
+        check_valid_item(last_item_id, dataset.items_list, user)
+
 
         # TODO: Update user Learning Unit history with last_item_id
 
@@ -85,7 +87,7 @@ def predict_for_user(user_id: int, last_item_id: str, random_mode: bool):
 
         # Get items the user has not interacted with - shape: [{"lu_id": "370", "result": 0.7775328675422801}, ...]
         # Use updated online data
-        item_with_no_interaction_ids = get_item_with_no_interaction_ids(user_id, dataset.items_list, dataset.users_list)
+        item_with_no_interaction_ids = get_item_with_no_interaction_ids(dataset.items_list, user)
 
         predictions = model.predict(internal_user_id, np.arange(num_items), user_features=dataset.uf_matrix,
                                     item_features=dataset.if_matrix)
@@ -99,9 +101,8 @@ def predict_for_user(user_id: int, last_item_id: str, random_mode: bool):
 This function returns the item ids the
 user has not interacted with.
 '''
-def get_item_with_no_interaction_ids(user_id, items, users):
-    item_with_interaction_ids = list(filter(
-            lambda user: user['id'] == str(user_id), users))[0].get('completed_lus')
+def get_item_with_no_interaction_ids(items, user):
+    item_with_interaction_ids = user.get('completed_lus')
 
     item_with_interaction_ids = set([lu["lu_id"] for lu in item_with_interaction_ids])
 
@@ -118,21 +119,38 @@ This function checks if user_id is in users list.
 If not it triggers an exception.
 '''
 def check_valid_user(user_id, users):
-    if len(list(filter(lambda user: user['id'] == str(user_id), users))) == 0:
+    user_list = list(filter(lambda user: user['id'] == str(user_id), users))
+    if len(user_list) == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                                 detail=f'User With ID={user_id} Not Found.')
 
+    return user_list[0]
+
 '''
 This function checks if last_lu_id is valid: 
-the id must be found in the set of all the items.
--1 value is allowed for the moment after self-assessment phase.
+- the id must be found in the set of all the items.
+- -1 value is allowed for the moment after self-assessment phase (user has never completed learning units)
+- the id must not be found in the user's consumed learning unit list.
 If last_item_id is not valid it triggers an exception.
 '''
-def check_valid_item(last_item_id, items):
+def check_valid_item(last_item_id, items, user):
     
+    # Check for existing item
     if int(last_item_id)!= -1 and len(list(filter(lambda item: item['identifier'] == last_item_id, items))) == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                 detail=f'Item With ID={last_item_id} Not Found.')
+
+    # Check if received last_item_id == -1 but
+    # the user has already seen some items
+    if int(last_item_id) == -1 and len(user.get('completed_lus')) != 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f'Item With ID={last_item_id} Not Accepted.')
+
+
+    # Check if the user has already seen the item
+    if int(last_item_id) in [int(lu['lu_id']) for lu in user.get('completed_lus')]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f'Item With ID={last_item_id} Not Accepted.')
 
 '''
     TODO: TO BE REMOVED
