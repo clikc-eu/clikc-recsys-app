@@ -74,4 +74,36 @@ def update_history(user_id: str, completed_lu: CompletedLearningUnit):
     # return updated user
     return user_json[i]
 
+'''
+This function updates the eqf level of a cluster
+for a given user.
+'''
+def update_eqf(user_id: str, skill: int, cluster: int, eqf: str):
+    # Load users as dictionary
+    user_data = load_data(os.getcwd() + '/' + FilePath.USER_PICKLE_PATH)
+
+    # user index
+    i = 0
+
+    # Find user index in data
+    for u in user_data:
+        if u.id == user_id:
+            break
+
+        i = i + 1
+
+    # Append Learning Unit to user history
+    user_data[i].eqf_levels[skill][cluster] = eqf
+
+    user_json = pd.DataFrame.from_records([user.dict() for user in user_data]).to_dict('records')
+
+
+    # save as json
+    store_json(user_json, os.getcwd() + '/' + FilePath.USER_JSON_PATH)
+
+    # save as pickle
+    store_data(user_data, os.getcwd() + '/' + FilePath.USER_PICKLE_PATH)
+
+    # return updated user
+    return user_json[i]
 

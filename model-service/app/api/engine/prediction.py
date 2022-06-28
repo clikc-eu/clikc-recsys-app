@@ -46,9 +46,24 @@ def predict_for_user(user_id: int, last_item_id: str, result: float,random_mode:
         # Check if result value is valid
         check_valid_result(result)
 
-        # Update user Learning Unit history with last_item_id
         if int(last_item_id) != -1:
+            # Update user Learning Unit history with last_item_id
             user = user_repository.update_history(user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result))
+
+            # Given the eqf level and the cluster number of
+            # the last learning unit completed by the user
+            # check if it is possible to increase the eqf_level
+            # of the user for that cluster.
+            # This happens only when all the learning units of a cluster have
+            # been completed for a given eqf level.
+            increase, skill, cluster_number = check_eqf_level_completed(user=user, last_item_id=last_item_id, items=items)
+            
+            if increase == True:
+                # eqf level must be increased if it is possible (eqf_level < 4)
+                user_eqf = int(user.get('eqf_levels')[int(skill) - 1][int(cluster_number) - 1])
+                if user_eqf < 4:
+                    user_eqf += 1
+                    user = user_repository.update_eqf(user['id'], int(skill) - 1, int(cluster_number) - 1, str(user_eqf))
 
         # Get items the user has not interacted with - shape: [{"lu_id": "370", "result": 0.7775328675422801}, ...]
         item_with_no_interaction_ids = get_item_with_no_interaction_ids(items, user)
@@ -92,6 +107,22 @@ def predict_for_user(user_id: int, last_item_id: str, result: float,random_mode:
         if int(last_item_id) != -1:
             user = user_repository.update_history(user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result))
 
+            # Given the eqf level and the cluster number of
+            # the last learning unit completed by the user
+            # check if it is possible to increase the eqf_level
+            # of the user for that cluster.
+            # This happens only when all the learning units of a cluster have
+            # been completed for a given eqf level.
+            increase, skill, cluster_number = check_eqf_level_completed(user=user, last_item_id=last_item_id, items=items)
+            
+            if increase == True:
+                # eqf level must be increased if it is possible (eqf_level < 4)
+                user_eqf = int(user.get('eqf_levels')[int(skill) - 1][int(cluster_number) - 1])
+                if user_eqf < 4:
+                    user_eqf += 1
+                    user = user_repository.update_eqf(user['id'], int(skill) - 1, int(cluster_number) - 1, str(user_eqf))
+
+
         user_in_model: bool = check_user_in_model(user_id, dataset.users_list)
 
         # If recommendations are for a user which is not 
@@ -125,6 +156,26 @@ def predict_for_user(user_id: int, last_item_id: str, result: float,random_mode:
 
         return sort_predictions(predictions=predictions, num_pred=default_num_pred, dataset=dataset, id_type=MappingType.ITEM_ID_TYPE, prediction_type=PredictionType.ITEMS_FOR_USER, item_with_no_interaction_ids=item_with_no_interaction_ids)
 
+
+'''
+This function checks if it is necessary to update (returns True)
+the eqf level of a cluster for a given user.
+This check is performed each time a user completes
+a Learning Unit.
+'''
+def check_eqf_level_completed(user, last_item_id, items):
+    # Get current item
+    lu = list(filter(lambda item: item['identifier'] == last_item_id, items))[0]
+    
+    # Get items for a specific skill, cluster and eqf levels
+    cluster_eqf_items = list(filter(lambda item: item['skill'] == lu['skill'] and item['cluster_number'] == lu['cluster_number'] and item['eqf_level'] == lu['eqf_level'], items))
+
+    # Get items for a specific skill, cluster and eqf levels
+    # completed by a user
+    all_completed_lus_ids = [l['lu_id'] for l in user['completed_lus']]
+    cluster_eqf_completed_lus = list(filter(lambda item: item['identifier'] in all_completed_lus_ids and item['skill'] == lu['skill'] and item['cluster_number'] == lu['cluster_number'] and item['eqf_level'] == lu['eqf_level'], items))
+
+    return len(cluster_eqf_completed_lus) == len(cluster_eqf_items), lu['skill'], lu['cluster_number']
 
 '''
 This function checks if user information is stored
