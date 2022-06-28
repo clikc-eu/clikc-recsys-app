@@ -96,16 +96,17 @@ async def train_model(client_session: ClientSession = Depends(client_session_dep
 
 
 @recsys_interface.get('/recommendations/user/{user_id}', response_model=RecommendOut, status_code=status.HTTP_200_OK)
-async def get_recommendations_for_user(user_id: int, last_lu_id: int = -1, client_session: ClientSession = Depends(client_session_dep), api_key: APIKey = Depends(authentication)):
+async def get_recommendations_for_user(user_id: int, last_lu_id: int = -1, result: float = 1.0, client_session: ClientSession = Depends(client_session_dep), api_key: APIKey = Depends(authentication)):
 
     '''
     This endpoint allows us to obtain recommendations for a given user given its id 'user_id'.
     \nIt is possible to specify the last Learning Unit id via query parameter 'last_lu_id'.
     \nDefault value is -1. It means that the first triplet of Learning Unit, after the self assessment phase,
     must be recommended.
+    'result' is the result of the test of the last Learning Unit.
     '''
 
-    return await RecsysInterfaceService().get_recommendations_for_user(user_id=user_id, last_lu_id=last_lu_id, client_session=client_session)
+    return await RecsysInterfaceService().get_recommendations_for_user(user_id=user_id, last_lu_id=last_lu_id, result=result, client_session=client_session)
 
 
 

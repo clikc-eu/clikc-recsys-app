@@ -85,9 +85,9 @@ Default value is -1. It means that the first Learning Unit, after the self asses
 must be recommended.
 '''
 @model.get('/recommendations/user/{user_id}', response_model=RecommendOut, status_code=status.HTTP_200_OK)
-def get_recommendations_for_user(user_id: int, last_lu_id: int = -1, api_key: APIKey = Depends(authentication)):
+def get_recommendations_for_user(user_id: int,last_lu_id: int = -1, result: float = 1.0, api_key: APIKey = Depends(authentication)):
 
-    return ModelService().get_recommendations_for_user(user_id=user_id, last_lu_id=str(last_lu_id))
+    return ModelService().get_recommendations_for_user(user_id=user_id, last_lu_id=str(last_lu_id), result=result)
 
 
 '''

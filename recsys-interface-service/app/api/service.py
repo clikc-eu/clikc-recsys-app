@@ -73,10 +73,11 @@ class RecsysInterfaceService():
     This is the microservice method in charge of contacting the Model microservice
     in order to forward recommendation requests for a given user.
     '''
-    async def get_recommendations_for_user(self, user_id: int, last_lu_id: int, client_session: ClientSession):
+    async def get_recommendations_for_user(self, user_id: int, last_lu_id: int, result: float, client_session: ClientSession):
 
         params = {
-            'last_lu_id': last_lu_id
+            'last_lu_id': last_lu_id,
+            'result': result
         }
         headers = {'access-token': recsys_interface.MODEL_SERVICE_API_KEY}
         try:

@@ -11,9 +11,12 @@ import pandas as pd
 from ..constants import FilePath
 from ..util.logger import logger
 from ..util.user_generator import generate_users
-from ..engine.load_store import load_data
+from ..engine.load_store import load_data, store_data, store_json
+from ..schemas import CompletedLearningUnit
 
-
+'''
+This function gets all users from the database (pickle file for now).
+'''
 def get_all():
 
     user_json = list()
@@ -27,12 +30,48 @@ def get_all():
         logger.info("Generating users from scratch.")
 
         user_json, user_data = generate_users()
+
         # save as json
-        with open(os.getcwd() + '/' + FilePath.USER_JSON_PATH, 'w') as f:
-            json.dump(user_json, f)
+        store_json(user_json, os.getcwd() + '/' + FilePath.USER_JSON_PATH)
 
         # save as pickle
-        with open(os.getcwd() + '/' + FilePath.USER_PICKLE_PATH, 'wb') as fle:
-            pickle.dump(user_data, fle, protocol=pickle.HIGHEST_PROTOCOL)
+        store_data(user_data, os.getcwd() + '/' + FilePath.USER_PICKLE_PATH)
 
     return user_json
+
+
+'''
+This function updates user data into the database (pickle file for now)
+'''
+def update_history(user_id: str, completed_lu: CompletedLearningUnit):
+    
+    # Load users as dictionary
+    user_data = load_data(os.getcwd() + '/' + FilePath.USER_PICKLE_PATH)
+
+
+    # user index
+    i = 0
+
+    # Find user index in data
+    for u in user_data:
+        if u.id == user_id:
+            break
+
+        i = i + 1
+
+    # Append Learning Unit to user history
+    user_data[i].completed_lus.append(completed_lu)
+
+    user_json = pd.DataFrame.from_records([user.dict() for user in user_data]).to_dict('records')
+
+
+    # save as json
+    store_json(user_json, os.getcwd() + '/' + FilePath.USER_JSON_PATH)
+
+    # save as pickle
+    store_data(user_data, os.getcwd() + '/' + FilePath.USER_PICKLE_PATH)
+
+    # return updated user
+    return user_json[i]
+
+

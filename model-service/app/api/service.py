@@ -22,8 +22,8 @@ class ModelService():
             next_run_time=datetime.datetime.now())
         return StatusTrainingOut(training_triggered=True)
 
-    def get_recommendations_for_user(self, user_id: int, last_lu_id: str):
-        return RecommendOut(ids=prediction.predict_for_user(user_id=user_id, last_item_id=last_lu_id, random_mode=main.random_mode))
+    def get_recommendations_for_user(self, user_id: int, last_lu_id: str, result: float):
+        return RecommendOut(ids=prediction.predict_for_user(user_id=user_id, last_item_id=last_lu_id, result=result,random_mode=main.random_mode))
 
     def get_recommendations_for_new_user(self, user_features: List[str], num_pred: int):
         return RecommendOut(ids=prediction.predict_for_new_user(user_features=user_features, num_pred=num_pred))

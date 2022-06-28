@@ -2,7 +2,7 @@ import random
 from typing import List
 from lightfm import LightFM
 import pandas as pd
-from .training import check_trained_model
+from .training import check_trained_model, train_model
 from .dataset import Dataset
 from .load_store import load_data
 from ..util.mapping import map_id_external_to_internal, map_id_internal_to_external, get_external_ids, get_user_feature_mapping
@@ -11,6 +11,7 @@ import numpy as np
 from lightfm.data import Dataset as LightDataset
 from fastapi import HTTPException, status
 from ..repository import learning_unit as lu_repository, user as user_repository
+from ..schemas import CompletedLearningUnit
 
 '''
     This functionality performs a prediction for
@@ -22,7 +23,7 @@ from ..repository import learning_unit as lu_repository, user as user_repository
     sorted by their score.
     When random_mode == True, recommendations are given randomly.
 '''
-def predict_for_user(user_id: int, last_item_id: str, random_mode: bool):
+def predict_for_user(user_id: int, last_item_id: str, result: float,random_mode: bool):
 
     if random_mode == True:
         # Recommendations made randomly
@@ -42,8 +43,12 @@ def predict_for_user(user_id: int, last_item_id: str, random_mode: bool):
         # Check if last item id is a valid id. -1 is allowed (user with zero interactions)
         check_valid_item(last_item_id, items, user)
 
+        # Check if result value is valid
+        check_valid_result(result)
 
-        # TODO: Update user Learning Unit history with last_item_id
+        # Update user Learning Unit history with last_item_id
+        if int(last_item_id) != -1:
+            user = user_repository.update_history(user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result))
 
         # Get items the user has not interacted with - shape: [{"lu_id": "370", "result": 0.7775328675422801}, ...]
         item_with_no_interaction_ids = get_item_with_no_interaction_ids(items, user)
@@ -64,15 +69,37 @@ def predict_for_user(user_id: int, last_item_id: str, random_mode: bool):
         dataset = Dataset(data_source=DataSource.PICKLE)
         model = load_data(FilePath.TRAINED_MODEL_PICKLE_PATH)
 
+        # Since dataset is built on training request: users, items
+        # and user history may be different from
+        # online db. Use data from online db for checks
+        item_data = lu_repository.get_all()
+
+        # Items as Python dictionary
+        items = pd.DataFrame.from_records([item.dict() for item in item_data]).to_dict('records')
+
+        users = user_repository.get_all()
+
         # Check if user_id is valid
-        user = check_valid_user(user_id, dataset.users_list)
+        user = check_valid_user(user_id, users)
 
         # Check if last item id is a valid id. -1 is allowed (user with zero interactions)
-        check_valid_item(last_item_id, dataset.items_list, user)
+        check_valid_item(last_item_id, items, user)
 
+        # Check if result value is valid
+        check_valid_result(result)
 
-        # TODO: Update user Learning Unit history with last_item_id
+        # Update user Learning Unit history with last_item_id
+        if int(last_item_id) != -1:
+            user = user_repository.update_history(user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result))
 
+        user_in_model: bool = check_user_in_model(user_id, dataset.users_list)
+
+        # If recommendations are for a user which is not 
+        # in the model dataset, re-build dataset and train the model
+        if user_in_model == False:
+            train_model()
+
+        # For prediction
         num_items = len(dataset.items_list)
 
         # Map external user id to internal dataset id
@@ -92,10 +119,24 @@ def predict_for_user(user_id: int, last_item_id: str, random_mode: bool):
         predictions = model.predict(internal_user_id, np.arange(num_items), user_features=dataset.uf_matrix,
                                     item_features=dataset.if_matrix)
 
-        # TODO: Apply learning path rules
+        # TODO: Apply learning path rules and distinguish between after self assessment phase (-1)
+        # and normal recommendations from pipeline
         default_num_pred = 3
 
         return sort_predictions(predictions=predictions, num_pred=default_num_pred, dataset=dataset, id_type=MappingType.ITEM_ID_TYPE, prediction_type=PredictionType.ITEMS_FOR_USER, item_with_no_interaction_ids=item_with_no_interaction_ids)
+
+
+'''
+This function checks if user information is stored
+both in model and dataset.
+'''
+def check_user_in_model(user_id, dataset_users):
+    user_list = list(filter(lambda user: user['id'] == str(user_id), dataset_users))
+    
+    if len(user_list) == 0:
+        return False
+
+    return True
 
 '''
 This function returns the item ids the
@@ -113,6 +154,16 @@ def get_item_with_no_interaction_ids(items, user):
             all_item_ids - item_with_interaction_ids)
         
     return item_with_no_interaction_ids
+
+'''
+This function checks if last Learning Unit result
+is valid, where valid means a value in the range
+0.0 - 1.0.
+'''
+def check_valid_result(result: float):
+    if result < 0.0 or result > 1.0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f'Result With Value {result} Is Not Valid.')
 
 '''
 This function checks if user_id is in users list.
