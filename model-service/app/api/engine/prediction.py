@@ -76,12 +76,21 @@ def predict_for_user(user_id: int, last_item_id: str, result: float, random_mode
         item_with_no_interaction_ids = get_item_with_no_interaction_ids(
             items, user)
 
-        random.shuffle(item_with_no_interaction_ids)
+        item_with_no_interaction = list(
+            filter(lambda i: i['identifier'] in item_with_no_interaction_ids, items))
 
-        # TODO: Use Learning Path rules (eqf, etc..)
+        random.shuffle(item_with_no_interaction)
+
+        # Rename identifier field in id
+        for i in item_with_no_interaction:
+            i['id'] = i.get('identifier')
+            del i['identifier']
+
+        # Use Learning Path rules (eqf, etc..)
+        result = apply_filter_two(user=user, items=item_with_no_interaction)
 
         # Return firs three elements
-        return item_with_no_interaction_ids[0:3]
+        return result[0:3]
     else:
         # Check if model has been trained
         if check_trained_model() == False:
@@ -173,7 +182,6 @@ def get_from_pipeline(model, dataset, user):
     item_with_no_interaction_ids = get_item_with_no_interaction_ids(
         dataset.items_list, user)
 
-    
     path_a_results = get_from_path_a(model=model, user=user, internal_user_id=internal_user_id, num_items=num_items,
                                      dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids)
 
@@ -194,6 +202,8 @@ This function filters items by the eqf level
 for a specific cluster for a given user.
 It returns the ids.
 '''
+
+
 def apply_filter_two(user, items):
 
     user_eqf = user['eqf_levels']
@@ -221,6 +231,8 @@ def apply_filter_two(user, items):
 This function represents Path A of the recommendation pipeline.
 It uses a LightFM model.
 '''
+
+
 def get_from_path_a(model, user, internal_user_id, num_items, dataset, item_with_no_interaction_ids):
 
     predictions = model.predict(internal_user_id, np.arange(num_items), user_features=dataset.uf_matrix,
@@ -228,7 +240,8 @@ def get_from_path_a(model, user, internal_user_id, num_items, dataset, item_with
 
     # Returns a dictionary of items
     # identifier field is now 'id'
-    path_a_results = sort_predictions(predictions=predictions, dataset=dataset, id_type=MappingType.ITEM_ID_TYPE, prediction_type=PredictionType.ITEMS_FOR_USER, item_with_no_interaction_ids=item_with_no_interaction_ids)
+    path_a_results = sort_predictions(predictions=predictions, dataset=dataset, id_type=MappingType.ITEM_ID_TYPE,
+                                      prediction_type=PredictionType.ITEMS_FOR_USER, item_with_no_interaction_ids=item_with_no_interaction_ids)
 
     # Filter 2: Filter by skill, cluster, eqf level
     path_a_result = apply_filter_two(user=user, items=path_a_results)
