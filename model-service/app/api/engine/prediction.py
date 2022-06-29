@@ -152,7 +152,7 @@ def predict_for_user(user_id: int, last_item_id: str, result: float, random_mode
             train_model()
 
         # Get recommendations from pipeline
-        return get_from_pipeline(model=model, dataset=dataset, user=user)
+        return get_from_pipeline(model=model, dataset=dataset, user=user, last_item_id=last_item_id)
 
 
 '''
@@ -161,9 +161,7 @@ prediction pipeline.
 Pipeline is composed of path A, B and C.
 We get one result from each path.
 '''
-
-
-def get_from_pipeline(model, dataset, user):
+def get_from_pipeline(model, dataset, user, last_item_id):
 
     # For prediction
     num_items = len(dataset.items_list)
@@ -185,16 +183,15 @@ def get_from_pipeline(model, dataset, user):
     path_a_results = get_from_path_a(model=model, user=user, internal_user_id=internal_user_id, num_items=num_items,
                                      dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids)
 
-    path_b_results = []
+    path_b_results = list()
+    if last_item_id != -1:
+        path_b_results = get_from_path_b(model=model, user=user,last_item_id=last_item_id, path_a_results=path_a_results, dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids)
 
-    # TODO: Filter 2: Filter by skill, cluster, eqf level
-    # TODO: Filter 3b: Take top score recommendation and exclude
-    # the element taken in path A
 
     # TODO: To be discussed
     path_c_results = []
 
-    return path_a_results
+    return path_a_results + path_b_results
 
 
 '''
@@ -202,8 +199,6 @@ This function filters items by the eqf level
 for a specific cluster for a given user.
 It returns the ids.
 '''
-
-
 def apply_filter_two(user, items):
 
     user_eqf = user['eqf_levels']
@@ -231,8 +226,6 @@ def apply_filter_two(user, items):
 This function represents Path A of the recommendation pipeline.
 It uses a LightFM model.
 '''
-
-
 def get_from_path_a(model, user, internal_user_id, num_items, dataset, item_with_no_interaction_ids):
 
     predictions = model.predict(internal_user_id, np.arange(num_items), user_features=dataset.uf_matrix,
@@ -255,11 +248,35 @@ This function represents Path B of the recommendation pipeline.
 It uses cosine similarity to get the most similar item
 to previous one.
 '''
+def get_from_path_b(model, user, last_item_id, path_a_results: List, dataset, item_with_no_interaction_ids):
+    
+    internal_item_id = map_id_external_to_internal(
+        dataset=dataset.dataset, external_id=str(last_item_id), id_type=MappingType.ITEM_ID_TYPE)
 
+    # Get latent representations
+    (_, item_representations) = model.get_item_representations(
+        dataset.if_matrix)
 
-def get_from_path_b():
-    pass
+    # Cosine similarity
+    scores = item_representations.dot(
+        item_representations[internal_item_id, :])
+    item_norms = np.linalg.norm(item_representations, axis=1)
+    scores /= item_norms
+    normalized_scores = scores/item_norms[internal_item_id]
 
+    # Returns a dictionary of items
+    # identifier field is now 'id'
+    path_b_results = sort_predictions(predictions=normalized_scores, dataset=dataset,
+        id_type=MappingType.ITEM_ID_TYPE, prediction_type=PredictionType.ITEMS_FOR_KNOWN_ITEM, item_with_no_interaction_ids=item_with_no_interaction_ids)
+
+    # Filter 2: Filter by skill, cluster, eqf level
+    path_b_results = apply_filter_two(user=user, items=path_b_results)
+
+    # Filter 3b: Take top score recommendation and exclude
+    # the element taken in path A
+    path_b_result = list(set(path_b_results) - set(path_a_results))
+
+    return path_b_result[0:1]
 
 '''
 This function represents Path C of the recommendation pipeline.
@@ -278,8 +295,6 @@ the eqf level of a cluster for a given user.
 This check is performed each time a user completes
 a Learning Unit.
 '''
-
-
 def check_eqf_level_completed(user, last_item_id, items):
     # Get current item
     lu = list(
@@ -302,8 +317,6 @@ def check_eqf_level_completed(user, last_item_id, items):
 This function checks if user information is stored
 both in model and dataset.
 '''
-
-
 def check_user_in_model(user_id, dataset_users):
     user_list = list(
         filter(lambda user: user['id'] == str(user_id), dataset_users))
@@ -318,8 +331,6 @@ def check_user_in_model(user_id, dataset_users):
 This function returns the item ids the
 user has not interacted with.
 '''
-
-
 def get_item_with_no_interaction_ids(items, user):
     item_with_interaction_ids = user.get('completed_lus')
 
@@ -340,8 +351,6 @@ This function checks if last Learning Unit result
 is valid, where valid means a value in the range
 0.0 - 1.0.
 '''
-
-
 def check_valid_result(result: float):
     if result < 0.0 or result > 1.0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
@@ -352,8 +361,6 @@ def check_valid_result(result: float):
 This function checks if user_id is in users list.
 If not it triggers an exception.
 '''
-
-
 def check_valid_user(user_id, users):
     user_list = list(filter(lambda user: user['id'] == str(user_id), users))
     if len(user_list) == 0:
@@ -370,8 +377,6 @@ This function checks if last_lu_id is valid:
 - the id must not be found in the user's consumed learning unit list.
 If last_item_id is not valid it triggers an exception.
 '''
-
-
 def check_valid_item(last_item_id, items, user):
 
     # Check for existing item
@@ -397,8 +402,6 @@ def check_valid_item(last_item_id, items, user):
     given the input features.
     fake_features_generation generates this list randomly (for test purposes).
 '''
-
-
 def predict_for_new_user(user_features: List[str], num_pred: int, fake_features_generation: bool = False):
 
     # Check if model has been trained
@@ -459,8 +462,6 @@ def predict_for_new_user(user_features: List[str], num_pred: int, fake_features_
     The first 'num_pred' predictions are returned
     sorted by their score (default is 100).
 '''
-
-
 def predict_items_for_known_item(item_id: int, num_pred: int):
 
     # Check if model has been trained
@@ -519,10 +520,9 @@ def sort_predictions(predictions, dataset: Dataset, id_type: MappingType, predic
     df = pd.DataFrame(data={'id': ids, 'score': predictions})
 
     # Rename 'identifier' in 'id'
-    if prediction_type == PredictionType.ITEMS_FOR_USER or prediction_type == PredictionType.ITEMS_FOR_UNKNOWN_USER:
-        df_items = pd.DataFrame(dataset.items_list)
-        df_items.rename(columns={'identifier': 'id'}, inplace=True)
-        df = df.join(df_items.set_index('id'), on='id')
+    df_items = pd.DataFrame(dataset.items_list)
+    df_items.rename(columns={'identifier': 'id'}, inplace=True)
+    df = df.join(df_items.set_index('id'), on='id')
 
     # Filter 1: remove items the user has already interacted with
     if item_with_no_interaction_ids != None:
