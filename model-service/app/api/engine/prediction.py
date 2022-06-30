@@ -6,7 +6,7 @@ from .training import check_trained_model, train_model
 from .dataset import Dataset
 from .load_store import load_data
 from ..util.mapping import map_id_external_to_internal, map_id_internal_to_external, get_external_ids, get_user_feature_mapping
-from ..constants import DataSource, FilePath, MappingType, PredictionType
+from ..constants import DataSource, FilePath, MappingType
 import numpy as np
 from lightfm.data import Dataset as LightDataset
 from fastapi import HTTPException, status
@@ -170,11 +170,6 @@ def get_from_pipeline(model, dataset, user, last_item_id):
     internal_user_id = map_id_external_to_internal(
         dataset=dataset.dataset, external_id=str(user['id']), id_type=MappingType.USER_ID_TYPE)
 
-    # Map external item id to internal dataset id
-    # if int(last_item_id) != -1:
-    #     last_item_internal_id = map_id_external_to_internal(
-    #         dataset=dataset.dataset, external_id=last_item_id, id_type=MappingType.ITEM_ID_TYPE)
-
     # Get items the user has not interacted with - shape: [{"lu_id": "370", "result": 0.7775328675422801}, ...]
     # Use updated online data
     item_with_no_interaction_ids = get_item_with_no_interaction_ids(
@@ -234,7 +229,7 @@ def get_from_path_a(model, user, internal_user_id, num_items, dataset, item_with
     # Returns a dictionary of items
     # identifier field is now 'id'
     path_a_results = sort_predictions(predictions=predictions, dataset=dataset, id_type=MappingType.ITEM_ID_TYPE,
-                                      prediction_type=PredictionType.ITEMS_FOR_USER, item_with_no_interaction_ids=item_with_no_interaction_ids)
+                                      item_with_no_interaction_ids=item_with_no_interaction_ids)
 
     # Filter 2: Filter by skill, cluster, eqf level
     path_a_result = apply_filter_two(user=user, items=path_a_results)
@@ -267,7 +262,7 @@ def get_from_path_b(model, user, last_item_id, path_a_results: List, dataset, it
     # Returns a dictionary of items
     # identifier field is now 'id'
     path_b_results = sort_predictions(predictions=normalized_scores, dataset=dataset,
-        id_type=MappingType.ITEM_ID_TYPE, prediction_type=PredictionType.ITEMS_FOR_KNOWN_ITEM, item_with_no_interaction_ids=item_with_no_interaction_ids)
+        id_type=MappingType.ITEM_ID_TYPE, item_with_no_interaction_ids=item_with_no_interaction_ids)
 
     # Filter 2: Filter by skill, cluster, eqf level
     path_b_results = apply_filter_two(user=user, items=path_b_results)
@@ -397,123 +392,10 @@ def check_valid_item(last_item_id, items, user):
 
 
 '''
-    TODO: TO BE REMOVED
-    This functionality performs predictions for a user with zero interactions
-    given the input features.
-    fake_features_generation generates this list randomly (for test purposes).
-'''
-def predict_for_new_user(user_features: List[str], num_pred: int, fake_features_generation: bool = False):
-
-    # Check if model has been trained
-    if check_trained_model() == False:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail='Model Not Trained Yet.')
-
-    # Check for num_pred >0
-    if num_pred < 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail='\'num_pred\' Must Be > 0.')
-
-    # Check for at least one feature
-    if len(user_features) == 0 and fake_features_generation == False:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail='Empty List of Features.')
-
-    if fake_features_generation == False:
-        # Remove duplicates from list
-        user_features = list(dict.fromkeys(user_features))
-
-    # Assume model and dataset stored as pickle file
-    dataset = Dataset(data_source=DataSource.PICKLE)
-    model: LightFM = load_data(FilePath.TRAINED_MODEL_PICKLE_PATH)
-
-    if fake_features_generation == False and set(user_features).issubset(set(dataset.user_features)) == False:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail='Not Valid List of Features')
-
-    # Check if num_pred is less than the overall number of items
-    if num_pred > len(dataset.items_list):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail='Number Of Requested Predictions Exceeds The Number Of Items')
-
-    # Generate fake user features if needed
-    if fake_features_generation == True:
-        user_features = dataset.build_fake_new_user_features(
-            num_features=1)
-
-    # Get user-feature mappings
-    user_feature_map = get_user_feature_mapping(dataset.dataset)
-
-    new_user_features = dataset.format_new_user_input(
-        user_feature_map, user_features)
-
-    num_items = len(dataset.items_list)
-
-    predictions = model.predict(0, np.arange(
-        num_items), user_features=new_user_features, item_features=dataset.if_matrix)
-
-    return sort_predictions(predictions=predictions, num_pred=num_pred, dataset=dataset, id_type=MappingType.ITEM_ID_TYPE, prediction_type=PredictionType.ITEMS_FOR_UNKNOWN_USER)
-
-
-'''
-    TODO: TO BE MERGED IN PIPELINE
-    This functionality performs predictions for a given item (items similar to this item)
-    via Cosine Similarity.
-    The first 'num_pred' predictions are returned
-    sorted by their score (default is 100).
-'''
-def predict_items_for_known_item(item_id: int, num_pred: int):
-
-    # Check if model has been trained
-    if check_trained_model() == False:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail='Model Not Trained Yet.')
-
-    # Check for num_pred >0
-    if num_pred < 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail='\'num_pred\' must be > 0.')
-
-    # Assume model and dataset stored as pickle file
-    dataset = Dataset(data_source=DataSource.PICKLE)
-    model = load_data(FilePath.TRAINED_MODEL_PICKLE_PATH)
-
-    # Check if item_id is valid
-    if len(list(filter(lambda item: item['identifier'] == str(item_id), dataset.items_list))) == 0:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f'Item With ID={item_id} Not Found.')
-
-    # Check if num_pred is less than the overall number of items
-    if num_pred > len(dataset.items_list):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail='Number Of Requested Predictions Exceeds The Number Of Items')
-
-    internal_item_id = map_id_external_to_internal(
-        dataset=dataset.dataset, external_id=str(item_id), id_type=MappingType.ITEM_ID_TYPE)
-
-    # Get latent representations
-    (_, item_representations) = model.get_item_representations(
-        dataset.if_matrix)
-
-    # Cosine similarity
-    scores = item_representations.dot(
-        item_representations[internal_item_id, :])
-    item_norms = np.linalg.norm(item_representations, axis=1)
-    scores /= item_norms
-    normalized_scores = scores/item_norms[internal_item_id]
-
-    # it is possible to remove the object for which we are requesting similarity
-    return sort_predictions(predictions=normalized_scores, dataset=dataset, num_pred=num_pred,
-                            id_type=MappingType.ITEM_ID_TYPE, prediction_type=PredictionType.ITEMS_FOR_KNOWN_ITEM)
-
-
-'''
     This functions sorts items the user has not interacted with by obtained
     score.
 '''
-
-
-def sort_predictions(predictions, dataset: Dataset, id_type: MappingType, prediction_type: PredictionType, item_with_no_interaction_ids=None):
+def sort_predictions(predictions, dataset: Dataset, id_type: MappingType, item_with_no_interaction_ids=None):
 
     ids = get_external_ids(dataset.dataset, id_type)
 

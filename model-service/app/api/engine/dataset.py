@@ -19,7 +19,6 @@ class Dataset():
     '''
     This dataset class has to be used in order to train the recommender.
 
-    - TO BE REMOVED: use 'build_from_local_json()' in order to use data from local json file(s).
     - use 'build_from_local_db_pickle()' in order to build the dataset from local pickle file(s).
     - use 'build_from_online_db()' in order to use data fetched from the
     remote database.
@@ -308,34 +307,3 @@ class Dataset():
                 res.append(entity.text.lower())
                 
         return res
-
-    '''
-    Builds a fake new user features list from the overall set of features.
-    '''
-    def build_fake_new_user_features(self, num_features: int = 1) -> list:
-
-        new_user_features = []
-
-        new_user_features = list(set(
-            random.sample(self.user_features, num_features)))
-
-        return new_user_features
-
-
-    def format_new_user_input(self, user_feature_map, user_feature_list):
-        num_features = len(user_feature_list)
-        normalised_val = 1.0
-        target_indices = []
-
-        for feature in user_feature_list:
-            try:
-                target_indices.append(user_feature_map[feature])
-            except KeyError:
-                logger.info("New user feature encountered '{}'".format(feature))
-                pass
-
-        new_user_features = np.zeros(len(user_feature_map.keys()))
-        for i in target_indices:
-            new_user_features[i] = normalised_val
-        new_user_features = sparse.csr_matrix(new_user_features)
-        return(new_user_features)

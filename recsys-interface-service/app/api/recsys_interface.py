@@ -3,8 +3,7 @@ import json
 import os
 from aiohttp import ClientSession
 from fastapi import APIRouter, Depends, Security, status
-import asyncio
-from .schemas import StatusOut, StatusTrainingOut, RecommendOut, UserFeaturesIn
+from .schemas import StatusOut, StatusTrainingOut, RecommendOut
 from .service import RecsysInterfaceService
 from starlette.requests import Request
 from fastapi.security.api_key import APIKeyHeader, APIKey
@@ -83,18 +82,6 @@ async def train_model(client_session: ClientSession = Depends(client_session_dep
     return await RecsysInterfaceService().train_model(client_session=client_session)
 
 
-# @recsys_interface.post('/recommendations/user/features', response_model=RecommendOut, status_code=status.HTTP_200_OK)
-# async def get_recommendations_for_new_user(user_features: UserFeaturesIn, num_pred: int = 100, client_session: ClientSession = Depends(client_session_dep), api_key: APIKey = Depends(authentication)):
-
-#     '''
-#     This endpoint allows us to obtain recommendations for a new user (with zero interactions) given some features.
-#     Features must be sent as a list of strings and must belong to the already existing (into the recommender) set of features.
-#     It is possible to specify the number of predictions to obtain via query parameter 'num_pred'.
-#     '''
-
-#     return await RecsysInterfaceService().get_recommendations_for_new_user(user_features=user_features.user_features, num_pred=num_pred, client_session=client_session)    
-
-
 @recsys_interface.get('/recommendations/user/{user_id}', response_model=RecommendOut, status_code=status.HTTP_200_OK)
 async def get_recommendations_for_user(user_id: int, last_lu_id: int = -1, result: float = 1.0, client_session: ClientSession = Depends(client_session_dep), api_key: APIKey = Depends(authentication)):
 
@@ -107,16 +94,3 @@ async def get_recommendations_for_user(user_id: int, last_lu_id: int = -1, resul
     '''
 
     return await RecsysInterfaceService().get_recommendations_for_user(user_id=user_id, last_lu_id=last_lu_id, result=result, client_session=client_session)
-
-
-
-# @recsys_interface.get('/recommendations/item/{item_id}', response_model=RecommendOut, status_code=status.HTTP_200_OK)
-# async def get_similar_items(item_id: int, num_pred: int = 100, client_session: ClientSession = Depends(client_session_dep), api_key: APIKey = Depends(authentication)):
-
-#     '''
-#     This endpoint allows us to obtain recommendations (similar items) for a given item given its id 'item_id'.
-#     Similarity is given by cosine similarity.
-#     \nIt is possible to specify the number of predictions to obtain via query parameter 'num_pred'.
-#     '''
-
-#     return await RecsysInterfaceService().get_similar_items(item_id=item_id, num_pred=num_pred, client_session=client_session)
