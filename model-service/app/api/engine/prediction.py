@@ -179,14 +179,14 @@ def get_from_pipeline(model, dataset, user, last_item_id):
                                      dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids)
 
     path_b_results = list()
-    if last_item_id != -1:
+    if int(last_item_id) != -1:
         path_b_results = get_from_path_b(model=model, user=user,last_item_id=last_item_id, path_a_results=path_a_results, dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids)
 
+    path_c_results = list()
+    if int(last_item_id) != -1:
+        path_c_results = get_from_path_c(model=model, user=user, last_item_id=last_item_id, previous_path_results=path_a_results + path_b_results, dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids)
 
-    # TODO: To be discussed
-    path_c_results = []
-
-    return path_a_results + path_b_results
+    return path_a_results + path_b_results + path_c_results
 
 
 '''
@@ -276,12 +276,38 @@ def get_from_path_b(model, user, last_item_id, path_a_results: List, dataset, it
 '''
 This function represents Path C of the recommendation pipeline.
 It uses cosine similarity to get the most similar item
-to the ones where the user got best results.
+to the ones where the user got best results (>= 60%).
 '''
+def get_from_path_c(model, user, last_item_id, previous_path_results: List, dataset, item_with_no_interaction_ids):
+    
+    path_c_result = list()
 
+    completed_items = user['completed_lus']
 
-def get_from_path_c():
-    pass
+    # If only one completed apply path B again excluding previous result
+    if len(completed_items) == 1:
+        return get_from_path_b(model=model, user=user, last_item_id=last_item_id, path_a_results=previous_path_results, dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids)
+
+    good_items = list(filter(lambda item: item['result'] >= 0.6, completed_items))
+
+    # Here we have more than one item completed.
+    # If we get no good results re-apply path B again.
+    if len(good_items) == 0:
+        return get_from_path_b(model=model, user=user, last_item_id=last_item_id, path_a_results=previous_path_results, dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids)
+
+    # Here we have at least one good result.
+    # For a random element, taken among the elements the user obtained a result >= 60%,
+    # get the most similar item the user has not completed
+    # and different from path A and path B results (Filter 3c).
+
+    # Randomly pick one item
+    random.shuffle(good_items)
+
+    good_item = good_items[0]
+
+    path_c_result += get_from_path_b(model=model, user=user, last_item_id=good_item['lu_id'], path_a_results=previous_path_results, dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids)
+
+    return path_c_result[0:1]
 
 
 '''
