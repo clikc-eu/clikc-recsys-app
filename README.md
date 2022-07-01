@@ -28,6 +28,9 @@ In order to run the project you need some configuration files which have not bee
 #### Note:
 For a fast usage go to https://localhost:8080/api/v1/recsys-interface/docs.
 
+#### Recommendation Pipeline:
+![](docs/images/pipeline.png?raw=true)
+
 ### Backend Interface microservice endpoints (MUST USE THESE)
 - Go to https://localhost:8080/api/v1/recsys-interface/docs (GET) to get the documentation about.
 - Go to https://localhost:8080/api/v1/recsys-interface/status (GET) to get service status.
