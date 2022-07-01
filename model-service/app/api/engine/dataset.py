@@ -1,6 +1,5 @@
 import json
 import os
-import pickle
 import random
 from typing import List
 from lightfm.data import Dataset as LightDataset
@@ -11,9 +10,8 @@ from .load_store import store_data, load_data
 import numpy as np
 from scipy import sparse
 import it_core_news_lg
-from ..util.lu_generator import generate_learning_units
-from ..util.user_generator import generate_users
 from ..schemas import LearningUnit
+from ..repository import learning_unit as lu_repository, user as user_repository
 
 
 
@@ -21,7 +19,6 @@ class Dataset():
     '''
     This dataset class has to be used in order to train the recommender.
 
-    - TO BE REMOVED: use 'build_from_local_json()' in order to use data from local json file(s).
     - use 'build_from_local_db_pickle()' in order to build the dataset from local pickle file(s).
     - use 'build_from_online_db()' in order to use data fetched from the
     remote database.
@@ -96,7 +93,7 @@ class Dataset():
         logger.info("Preparing learning units local dump.")
 
         # Load learning units data from pickle file
-        items_dump = self.__load_lus()
+        items_dump = lu_repository.get_all()
 
         logger.info("Extracting keywords to enrich learning units local dump.")
 
@@ -111,7 +108,7 @@ class Dataset():
         # Load users data from pickle file
         # users_dump is a dictionary
         logger.info("Preparing users local dump.")
-        users_dump = self.__load_users()
+        users_dump = user_repository.get_all()
 
         logger.info("Users successfully extracted.")
 
@@ -205,58 +202,6 @@ class Dataset():
         # TODO: Load from db using repository methods
         pass
 
-    
-    '''
-    This method reads learning units from a local pickle file.
-    In case the pickle file does not exist it builds the pickle file
-    starting from a basic json file.
-    '''
-    def __load_lus(self):
-        
-        lus_data = list()
-
-        if os.path.isfile(os.getcwd() + '/' + FilePath.LU_PICKLE_PATH):
-            logger.info("Loading learning units from pickle file.")
-            lus_data = load_data(os.getcwd() + '/' + FilePath.LU_PICKLE_PATH)
-        else:
-            logger.info("Generating learning units from scratch.")
-
-            lus_data = generate_learning_units()
-
-            # save as pickle
-            with open(os.getcwd() + '/' + FilePath.LU_PICKLE_PATH, 'wb') as fle:
-                pickle.dump(lus_data, fle, protocol=pickle.HIGHEST_PROTOCOL)
-
-        return lus_data
-
-
-    '''
-    This method reads user data from a local pickle file.
-    In case the pickle file does not exist it builds the pickle file
-    starting from a basic json file.
-    '''
-    def __load_users(self):
-
-        user_json = list()
-        user_data = list()
-
-        if os.path.isfile(os.getcwd() + '/' + FilePath.USER_PICKLE_PATH):
-            logger.info("Loading users from pickle file.")
-            user_data = load_data(os.getcwd() + '/' + FilePath.USER_PICKLE_PATH)
-            user_json = pd.DataFrame.from_records([user.dict() for user in user_data]).to_dict('records')
-        else:
-            logger.info("Generating users from scratch.")
-
-            user_json, user_data = generate_users()
-            # save as json
-            with open(os.getcwd() + '/' + FilePath.USER_JSON_PATH, 'w') as f:
-                json.dump(user_json, f)
-
-            # save as pickle
-            with open(os.getcwd() + '/' + FilePath.USER_PICKLE_PATH, 'wb') as fle:
-                pickle.dump(user_data, fle, protocol=pickle.HIGHEST_PROTOCOL)
-
-        return user_json
 
     def __build_interactions_matrix(self, users_with_items_interactions: list):
         '''
@@ -362,34 +307,3 @@ class Dataset():
                 res.append(entity.text.lower())
                 
         return res
-
-    '''
-    Builds a fake new user features list from the overall set of features.
-    '''
-    def build_fake_new_user_features(self, num_features: int = 1) -> list:
-
-        new_user_features = []
-
-        new_user_features = list(set(
-            random.sample(self.user_features, num_features)))
-
-        return new_user_features
-
-
-    def format_new_user_input(self, user_feature_map, user_feature_list):
-        num_features = len(user_feature_list)
-        normalised_val = 1.0
-        target_indices = []
-
-        for feature in user_feature_list:
-            try:
-                target_indices.append(user_feature_map[feature])
-            except KeyError:
-                logger.info("New user feature encountered '{}'".format(feature))
-                pass
-
-        new_user_features = np.zeros(len(user_feature_map.keys()))
-        for i in target_indices:
-            new_user_features[i] = normalised_val
-        new_user_features = sparse.csr_matrix(new_user_features)
-        return(new_user_features)

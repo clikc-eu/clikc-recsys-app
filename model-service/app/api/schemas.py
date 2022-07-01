@@ -13,6 +13,7 @@ Output status of the Model microservice
 class StatusOut(BaseModel):
     server_on: bool
     model_trained: bool
+    random_mode_on: bool
 
 '''
 Output status of training phase: it shows if training has been triggered

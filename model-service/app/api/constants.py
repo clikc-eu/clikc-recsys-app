@@ -51,11 +51,6 @@ class MappingType(Enum):
     USER_ID_TYPE = 6
     ITEM_ID_TYPE = 7
 
-class PredictionType(Enum):
-    ITEMS_FOR_USER = 8
-    ITEMS_FOR_UNKNOWN_USER = 9
-    ITEMS_FOR_KNOWN_ITEM = 10
-
 class TrainingJob():
     JOB_ID = 'model_training_job'
     JOB_NAME = 'Train model each day'
@@ -68,3 +63,11 @@ class DynamicFieldType():
     MEMORY_BOX = 'memory_box'
     REFERENCE = 'reference'
     LANGUAGE_POINT = 'language_point'
+
+
+'''
+List of configuration keys contained in "configuration.json" file
+'''
+class JsonConfig():
+    RANDOM_MODE_NAME = 'random_mode' # Used to start the microservice with random recommendations
+    API_KEY_NAME = 'access-token'    # Used to get the api key used in the authentication header

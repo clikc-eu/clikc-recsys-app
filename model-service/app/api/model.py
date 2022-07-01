@@ -5,28 +5,31 @@ from fastapi.security.api_key import APIKeyHeader, APIKey
 from .service import ModelService
 from .schemas import StatusOut, RecommendOut, StatusTrainingOut, UserFeaturesIn
 from .util import logger
+from .constants import JsonConfig
 
 
 '''
 Authentication
 '''
 API_KEY = str()
-API_KEY_NAME = "access-token"
 
-api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+api_key_header = APIKeyHeader(name=JsonConfig.API_KEY_NAME, auto_error=False)
 
 model = APIRouter()
 
+
+'''
+This function loads a configuration file at startup
+'''
 @model.on_event("startup")
 async def startup():
     global API_KEY
-    global API_KEY_NAME
 
     if os.path.exists("configuration.json") and os.path.isfile("configuration.json"):
         with open("configuration.json", "r") as configuration:
             try:
                 configuration = json.load(configuration)
-                API_KEY = configuration.get(API_KEY_NAME)
+                API_KEY = configuration.get(JsonConfig.API_KEY_NAME)
                 if not API_KEY:
                     raise KeyError()
             except json.JSONDecodeError as json_decode_error:
@@ -64,35 +67,14 @@ def train_model(api_key: APIKey = Depends(authentication)):
 
     return ModelService().train_model()
 
-'''
-    TODO: TO BE REMOVED
-    This endpoint allows us to obtain recommendations for a new user (with zero interactions) given some features.
-    Features must be sent as a list of strings and must belong to the already existing (into the recommender) set of features.
-    It is possible to specify the number of predictions to obtain via query parameter 'num_pred'.
-'''
-@model.post('/recommendations/user/features', response_model=RecommendOut, status_code=status.HTTP_200_OK)
-def get_recommendations_for_new_user(user_features: UserFeaturesIn, num_pred: int = 100, api_key: APIKey = Depends(authentication)):
-
-    return ModelService().get_recommendations_for_new_user(user_features=user_features.user_features, num_pred=num_pred)    
 
 '''
-    TODO: TO BE MERGED INTO RECOMMENDATIONS PIPELINE
-    This endpoint allows us to obtain recommendations for a given user given its id 'user_id'.
-    It is possible to specify the number of predictions to obtain via query parameter 'num_pred'.
+This endpoint allows us to obtain recommendations for a given user given its id 'user_id'.
+It is possible to specify the last Learning Unit id via query parameter 'last_lu_id'.
+Default value is -1. It means that the first Learning Unit, after the self assessment phase,
+must be recommended.
 '''
 @model.get('/recommendations/user/{user_id}', response_model=RecommendOut, status_code=status.HTTP_200_OK)
-def get_recommendations_for_user(user_id: int, num_pred: int = 100, api_key: APIKey = Depends(authentication)):
+def get_recommendations_for_user(user_id: int,last_lu_id: int = -1, result: float = 1.0, api_key: APIKey = Depends(authentication)):
 
-    return ModelService().get_recommendations_for_user(user_id=user_id, num_pred=num_pred)
-
-
-'''
-    TODO: TO BE MERGED INTO RECOMMENDATIONS PIPELINE
-    This endpoint allows us to obtain recommendations (similar items) for a given item given its id 'item_id'.
-    Similarity is given by cosine similarity.
-    It is possible to specify the number of predictions to obtain via query parameter 'num_pred'.
-'''
-@model.get('/recommendations/item/{item_id}', response_model=RecommendOut, status_code=status.HTTP_200_OK)
-def get_similar_items(item_id: int, num_pred: int = 100, api_key: APIKey = Depends(authentication)):
-
-    return ModelService().get_similar_items(item_id=item_id, num_pred=num_pred)
+    return ModelService().get_recommendations_for_user(user_id=user_id, last_lu_id=str(last_lu_id), result=result)
