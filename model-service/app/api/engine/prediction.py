@@ -87,7 +87,14 @@ def predict_for_user(user_id: int, last_item_id: str, result: float, random_mode
             del i['identifier']
 
         # Use Learning Path rules (eqf, etc..)
+        # ids are obtained here
         result = apply_filter_two(user=user, items=item_with_no_interaction)
+
+        # If after self assessment phase, select items
+        # from favourite clusters
+        if int(last_item_id) == -1:
+            result = list(filter(lambda i: i['id'] in result, item_with_no_interaction))
+            result = filter_by_fav_clusters(user=user, items=result)
 
         # Return firs three elements
         return result[0:3]
@@ -176,7 +183,19 @@ def get_from_pipeline(model, dataset, user, last_item_id):
         dataset.items_list, user)
 
     path_a_results = get_from_path_a(model=model, user=user, internal_user_id=internal_user_id, num_items=num_items,
-                                     dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids)
+                                     dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids, last_item_id=last_item_id)
+
+    # If after self assessment phase, select items
+    # from favourite clusters
+    if int(last_item_id) == -1:
+        result = list()
+        for id in path_a_results:
+            result.append(list(filter(lambda i: i['identifier'] == id, dataset.items_list))[0])
+        # Rename identifier field in id
+        for i in result:
+            i['id'] = i.get('identifier')
+            del i['identifier']
+        path_a_results = filter_by_fav_clusters(user=user, items=result)
 
     path_b_results = list()
     if int(last_item_id) != -1:
@@ -212,6 +231,27 @@ def apply_filter_two(user, items):
                            (user_eqf[3][1] == item['eqf_level'] and item['skill'] == "4" and item['cluster_number'] == "2") or
                            (user_eqf[3][2] == item['eqf_level'] and item['skill'] == "4" and item['cluster_number'] == "3"), items))
 
+
+    filtered = [item['id'] for item in filtered]
+
+    return filtered
+
+
+'''
+This function filters items (already filtered by eqf_level) 
+by user selected favourite
+clusters (in self assessment phase).
+This function takes 1 item for each favourite cluster
+'''
+def filter_by_fav_clusters(user, items):
+    user_fav_clusters = user['fav_clusters']
+
+    filtered = list()
+
+    # Take 1 item for each favourite cluster
+    for fav in user_fav_clusters:
+        filtered.append(list(filter(lambda item: item['skill'] == fav['skill'] and item['cluster_number'] == fav['cluster'], items))[0])
+
     filtered = [item['id'] for item in filtered]
 
     return filtered
@@ -221,7 +261,7 @@ def apply_filter_two(user, items):
 This function represents Path A of the recommendation pipeline.
 It uses a LightFM model.
 '''
-def get_from_path_a(model, user, internal_user_id, num_items, dataset, item_with_no_interaction_ids):
+def get_from_path_a(model, user, internal_user_id, num_items, dataset, item_with_no_interaction_ids, last_item_id):
 
     predictions = model.predict(internal_user_id, np.arange(num_items), user_features=dataset.uf_matrix,
                                 item_features=dataset.if_matrix)
@@ -233,6 +273,10 @@ def get_from_path_a(model, user, internal_user_id, num_items, dataset, item_with
 
     # Filter 2: Filter by skill, cluster, eqf level
     path_a_result = apply_filter_two(user=user, items=path_a_results)
+
+    # If after self-assessment phase return all ids
+    if int(last_item_id) == -1:
+        return path_a_result
 
     # Filter 3a: Take top score recommendation
     return path_a_result[0:1]
@@ -269,7 +313,8 @@ def get_from_path_b(model, user, last_item_id, path_a_results: List, dataset, it
 
     # Filter 3b: Take top score recommendation and exclude
     # the element taken in path A
-    path_b_result = list(set(path_b_results) - set(path_a_results))
+    # IMPORTANT: keep sorted elements here!
+    path_b_result = list(filter(lambda i: i not in path_a_results, path_b_results))
 
     return path_b_result[0:1]
 
