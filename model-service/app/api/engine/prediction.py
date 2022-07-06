@@ -81,14 +81,14 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
             user = user_repository.update_lm_history(
                 user['id'], LMLearningUnit(identifier=last_item_id))
 
+            # Get standard last_item_id
+            last_item_id = get_last_lu_id_by_timestamp(user)
+
         # Check if it is necessary to recommend labour market Learning Unit
-        if user['lu_counter'] == 5:
+        if user['lu_counter'] >= 5:
             lm_lu_ids = get_lm_recommendations(user, lm_items)
             if len(lm_lu_ids) > 0:
                 return True, lm_lu_ids[0:1]
-            # else:
-                #TODO: Here we have no labour market lus to reccommend.
-                #      We should get last_lu_id using timestamp in order to recommend.
 
 
         # Get items the user has not interacted with - shape: [{"lu_id": "370", "result": 0.7775328675422801}, ...]
@@ -178,14 +178,14 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
             user = user_repository.update_lm_history(
                 user['id'], LMLearningUnit(identifier=last_item_id))
 
+            # Get standard last_item_id
+            last_item_id = get_last_lu_id_by_timestamp(user)
+
         # Check if it is necessary to recommend labour market Learning Unit
-        if user['lu_counter'] == 5:
+        if user['lu_counter'] >= 5:
             lm_lu_ids = get_lm_recommendations(user, lm_items)
             if len(lm_lu_ids) > 0:
                 return True, lm_lu_ids[0:1]
-            # else:
-                #TODO: Here we have no labour market lus to reccommend.
-                #      We should get last_lu_id using timestamp in order to recommend.
 
 
         user_in_model: bool = check_user_in_model(user_id, dataset.users_list)
@@ -195,8 +195,15 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
         if user_in_model == False:
             train_model()
 
+        print("lastt " + last_item_id)
+
         # Get recommendations from pipeline
         return False, get_from_pipeline(model=model, dataset=dataset, user=user, last_item_id=last_item_id)
+
+
+def get_last_lu_id_by_timestamp(user):
+    completed_lus = sorted(user['completed_lus'], key=lambda d: d['timestamp'], reverse=True)
+    return completed_lus[0]["lu_id"]
 
 '''
 This function gets (not viewed) labour market learning
