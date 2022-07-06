@@ -511,7 +511,10 @@ def check_valid_item(is_last_lm, last_item_id, items, lm_items, user):
                             detail=f'Item With ID={last_item_id} Not Accepted.')
 
     
-    if is_last_lm == False and (user['lu_counter'] < 0 or user['lu_counter'] >= 5):
+    user_lm_ids = list(map(lambda i: i['identifier'], user['completed_lm_lus']))
+    lm_ids = list(map(lambda i: i['identifier'], lm_items))
+
+    if is_last_lm == False and (user['lu_counter'] < 0 or user['lu_counter'] >= 5) and len(user_lm_ids) < len(lm_ids):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f'Item With ID={last_item_id} Not Accepted.')
 
