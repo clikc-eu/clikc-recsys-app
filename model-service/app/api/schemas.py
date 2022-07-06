@@ -25,6 +25,7 @@ class StatusTrainingOut(BaseModel):
 List of the ids of the recommendations given as output to the user
 '''
 class RecommendOut(BaseModel):
+    is_labour_market: bool
     ids: List[int]
 
 '''
