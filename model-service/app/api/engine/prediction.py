@@ -10,7 +10,7 @@ from ..constants import DataSource, FilePath, MappingType
 import numpy as np
 from lightfm.data import Dataset as LightDataset
 from fastapi import HTTPException, status
-from ..repository import learning_unit as lu_repository, user as user_repository
+from ..repository import lm_learning_unit as lm_lu_repository, learning_unit as lu_repository, user as user_repository
 from ..schemas import CompletedLearningUnit
 
 '''
@@ -35,6 +35,9 @@ def predict_for_user(user_id: int, last_item_id: str, result: float, random_mode
         # Items as Python dictionary
         items = pd.DataFrame.from_records(
             [item.dict() for item in item_data]).to_dict('records')
+
+        # Labour market items as Python dictionary
+        lm_items = lm_lu_repository.get_all()
 
         # Users as Python dictionary
         # TODO: get users from online DB
@@ -116,6 +119,9 @@ def predict_for_user(user_id: int, last_item_id: str, result: float, random_mode
         # Items as Python dictionary
         items = pd.DataFrame.from_records(
             [item.dict() for item in item_data]).to_dict('records')
+
+        # Labour market items as Python dictionary
+        lm_items = lm_lu_repository.get_all()
 
         users = user_repository.get_all()
 

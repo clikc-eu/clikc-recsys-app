@@ -59,6 +59,13 @@ class LearningUnit(BaseModel):
     translations: List[Translation]
 
 '''
+Model of a single labour market Learning Unit
+'''
+class LMLearningUnit(BaseModel):
+    identifier: str
+
+
+'''
 Cluster model
 '''
 class Cluster(BaseModel):
@@ -85,3 +92,6 @@ class User(BaseModel):
     eqf_levels: List[List[str]] # 3 clusters for each skill
     fav_clusters: List[Cluster] # 3 favourite clusters from assessment phase
     completed_lus: List[CompletedLearningUnit]  # List of completed Learning Units
+    completed_lm_lus: List[LMLearningUnit]      # List of completet labour market Learning Units
+    lu_counter: int     # Counter for viewed Learning Unit (LU). Every 5 LU is set to zero and
+                        # a LU from labour market is recommended

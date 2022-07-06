@@ -7,11 +7,9 @@ import pandas as pd
 from ..constants import DynamicFieldType, FilePath, DataSource, DatasetState
 from ..util.logger import logger
 from .load_store import store_data, load_data
-import numpy as np
-from scipy import sparse
 import it_core_news_lg
 from ..schemas import LearningUnit
-from ..repository import learning_unit as lu_repository, user as user_repository
+from ..repository import lm_learning_unit as lm_lu_repository, learning_unit as lu_repository, user as user_repository
 
 
 
@@ -32,6 +30,7 @@ class Dataset():
         # List of users and items
         self.users_list = None
         self.items_list = None
+        self.lm_items_list = None
 
         # LightFM dataset 'LightDataset' object
         # https://making.lyst.com/lightfm/docs/lightfm.data.html
@@ -55,9 +54,6 @@ class Dataset():
 
         # List of item features
         self.item_features = None
-
-        # Test interactions to be used for evaluation purposes
-        self.test_interactions = None
 
         # On Dataset Building delete old dataset and trained model pickle files if necessary
         # depending on data_source
@@ -105,6 +101,9 @@ class Dataset():
 
         logger.info("Keywords successfully extracted. Learning Units ready.")
 
+        logger.info("Preparing labour market learning units local dump.")
+        lm_items_dump = lm_lu_repository.get_all()
+
         # Load users data from pickle file
         # users_dump is a dictionary
         logger.info("Preparing users local dump.")
@@ -134,6 +133,7 @@ class Dataset():
 
         self.items_list = items_dump
         self.users_list = users_dump
+        self.lm_items_list = lm_items_dump
 
         # Dataset creation
         # It builds the ID mappings: https://making.lyst.com/lightfm/docs/examples/dataset.html#building-the-id-mappings
@@ -234,13 +234,13 @@ class Dataset():
     def __store_dataset(self):
         state = {
             DatasetState.INTERACTIONS: self.interactions,
-            DatasetState.TEST_INTERACTIONS: self.test_interactions,
             DatasetState.USER_FEATURES_MATRIX: self.uf_matrix,
             DatasetState.ITEM_FEATURES_MATRIX: self.if_matrix,
             DatasetState.USER_FEATURES: self.user_features,
             DatasetState.ITEM_FEATURES: self.item_features,
             DatasetState.USERS_LIST: self.users_list,
             DatasetState.ITEMS_LIST: self.items_list,
+            DatasetState.LM_ITEMS_LIST: self.lm_items_list,
             DatasetState.DATASET: self.dataset
         }
         store_data(state, FilePath.TEMP_DATASET_PICKLE_PATH)
@@ -248,13 +248,13 @@ class Dataset():
     def __load_dataset(self):
         state = load_data(FilePath.DATASET_PICKLE_PATH)
         self.interactions = state[DatasetState.INTERACTIONS]
-        self.test_interactions = state[DatasetState.TEST_INTERACTIONS]
         self.uf_matrix = state[DatasetState.USER_FEATURES_MATRIX]
         self.if_matrix = state[DatasetState.ITEM_FEATURES_MATRIX]
         self.user_features = state[DatasetState.USER_FEATURES]
         self.item_features = state[DatasetState.ITEM_FEATURES]
         self.users_list = state[DatasetState.USERS_LIST]
         self.items_list = state[DatasetState.ITEMS_LIST]
+        self.lm_items_list = state[DatasetState.LM_ITEMS_LIST]
         self.dataset = state[DatasetState.DATASET]
 
     '''
