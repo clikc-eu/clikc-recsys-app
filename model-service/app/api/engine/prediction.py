@@ -12,6 +12,7 @@ from lightfm.data import Dataset as LightDataset
 from fastapi import HTTPException, status
 from ..repository import lm_learning_unit as lm_lu_repository, learning_unit as lu_repository, user as user_repository
 from ..schemas import CompletedLearningUnit, LMLearningUnit
+from datetime import datetime
 
 '''
     This functionality performs a prediction for
@@ -55,7 +56,7 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
         if int(last_item_id) != -1 and is_last_lm == False:
             # Update user Learning Unit history with last_item_id
             user = user_repository.update_history(
-                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result))
+                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result, timestamp=datetime.now().timestamp()))
 
             # Given the eqf level and the cluster number of
             # the last learning unit completed by the user
@@ -152,7 +153,7 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
         # Update user Learning Unit history with last_item_id
         if int(last_item_id) != -1 and is_last_lm == False:
             user = user_repository.update_history(
-                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result))
+                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result, timestamp=datetime.now().timestamp()))
 
             # Given the eqf level and the cluster number of
             # the last learning unit completed by the user

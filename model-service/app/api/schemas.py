@@ -79,6 +79,7 @@ Completed Learning Unit model
 class CompletedLearningUnit(BaseModel):
     lu_id: str # Learning Unit identifier
     result: float   # Result in percentage
+    timestamp: float  # Timestamp when learning unit was registered as completed
 
 '''
 User model
