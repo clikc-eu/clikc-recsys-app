@@ -15,4 +15,5 @@ class StatusTrainingOut(BaseModel):
     training_triggered: bool
 
 class RecommendOut(BaseModel):
+    is_labour_market: bool
     ids: List[int]

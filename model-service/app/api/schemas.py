@@ -25,6 +25,7 @@ class StatusTrainingOut(BaseModel):
 List of the ids of the recommendations given as output to the user
 '''
 class RecommendOut(BaseModel):
+    is_labour_market: bool
     ids: List[int]
 
 '''
@@ -59,6 +60,13 @@ class LearningUnit(BaseModel):
     translations: List[Translation]
 
 '''
+Model of a single labour market Learning Unit
+'''
+class LMLearningUnit(BaseModel):
+    identifier: str
+
+
+'''
 Cluster model
 '''
 class Cluster(BaseModel):
@@ -71,6 +79,7 @@ Completed Learning Unit model
 class CompletedLearningUnit(BaseModel):
     lu_id: str # Learning Unit identifier
     result: float   # Result in percentage
+    timestamp: float  # Timestamp when learning unit was registered as completed
 
 '''
 User model
@@ -85,3 +94,6 @@ class User(BaseModel):
     eqf_levels: List[List[str]] # 3 clusters for each skill
     fav_clusters: List[Cluster] # 3 favourite clusters from assessment phase
     completed_lus: List[CompletedLearningUnit]  # List of completed Learning Units
+    completed_lm_lus: List[LMLearningUnit]      # List of completet labour market Learning Units
+    lu_counter: int     # Counter for viewed Learning Unit (LU). Every 5 LU is set to zero and
+                        # a LU from labour market is recommended

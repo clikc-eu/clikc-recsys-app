@@ -10,8 +10,9 @@ from ..constants import DataSource, FilePath, MappingType
 import numpy as np
 from lightfm.data import Dataset as LightDataset
 from fastapi import HTTPException, status
-from ..repository import learning_unit as lu_repository, user as user_repository
-from ..schemas import CompletedLearningUnit
+from ..repository import lm_learning_unit as lm_lu_repository, learning_unit as lu_repository, user as user_repository
+from ..schemas import CompletedLearningUnit, LMLearningUnit
+from datetime import datetime
 
 '''
     This functionality performs a prediction for
@@ -25,7 +26,7 @@ from ..schemas import CompletedLearningUnit
 '''
 
 
-def predict_for_user(user_id: int, last_item_id: str, result: float, random_mode: bool):
+def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: float, random_mode: bool):
 
     if random_mode == True:
         # Recommendations made randomly
@@ -36,6 +37,9 @@ def predict_for_user(user_id: int, last_item_id: str, result: float, random_mode
         items = pd.DataFrame.from_records(
             [item.dict() for item in item_data]).to_dict('records')
 
+        # Labour market items as Python dictionary
+        lm_items = lm_lu_repository.get_all()
+
         # Users as Python dictionary
         # TODO: get users from online DB
         users = user_repository.get_all()
@@ -44,15 +48,15 @@ def predict_for_user(user_id: int, last_item_id: str, result: float, random_mode
         user = check_valid_user(user_id, users)
 
         # Check if last item id is a valid id. -1 is allowed (user with zero interactions)
-        check_valid_item(last_item_id, items, user)
+        check_valid_item(is_last_lm=is_last_lm, last_item_id=last_item_id, items=items, lm_items=lm_items, user=user)
 
         # Check if result value is valid
         check_valid_result(result)
 
-        if int(last_item_id) != -1:
+        if int(last_item_id) != -1 and is_last_lm == False:
             # Update user Learning Unit history with last_item_id
             user = user_repository.update_history(
-                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result))
+                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result, timestamp=datetime.now().timestamp()))
 
             # Given the eqf level and the cluster number of
             # the last learning unit completed by the user
@@ -71,6 +75,21 @@ def predict_for_user(user_id: int, last_item_id: str, result: float, random_mode
                     user_eqf += 1
                     user = user_repository.update_eqf(user['id'], int(
                         skill) - 1, int(cluster_number) - 1, str(user_eqf))
+
+        elif int(last_item_id) != -1 and is_last_lm == True:
+            # Update user labour market Learning Unit history with last_item_id
+            user = user_repository.update_lm_history(
+                user['id'], LMLearningUnit(identifier=last_item_id))
+
+            # Get standard last_item_id
+            last_item_id = get_last_lu_id_by_timestamp(user)
+
+        # Check if it is necessary to recommend labour market Learning Unit
+        if user['lu_counter'] >= 5:
+            lm_lu_ids = get_lm_recommendations(user, lm_items)
+            if len(lm_lu_ids) > 0:
+                return True, lm_lu_ids[0:1]
+
 
         # Get items the user has not interacted with - shape: [{"lu_id": "370", "result": 0.7775328675422801}, ...]
         item_with_no_interaction_ids = get_item_with_no_interaction_ids(
@@ -97,7 +116,7 @@ def predict_for_user(user_id: int, last_item_id: str, result: float, random_mode
             result = filter_by_fav_clusters(user=user, items=result)
 
         # Return firs three elements
-        return result[0:3]
+        return False, result[0:3]
     else:
         # Check if model has been trained
         if check_trained_model() == False:
@@ -117,21 +136,24 @@ def predict_for_user(user_id: int, last_item_id: str, result: float, random_mode
         items = pd.DataFrame.from_records(
             [item.dict() for item in item_data]).to_dict('records')
 
+        # Labour market items as Python dictionary
+        lm_items = lm_lu_repository.get_all()
+
         users = user_repository.get_all()
 
         # Check if user_id is valid
         user = check_valid_user(user_id, users)
 
         # Check if last item id is a valid id. -1 is allowed (user with zero interactions)
-        check_valid_item(last_item_id, items, user)
+        check_valid_item(is_last_lm=is_last_lm, last_item_id=last_item_id, items=items, lm_items=lm_items, user=user)
 
         # Check if result value is valid
         check_valid_result(result)
 
         # Update user Learning Unit history with last_item_id
-        if int(last_item_id) != -1:
+        if int(last_item_id) != -1 and is_last_lm == False:
             user = user_repository.update_history(
-                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result))
+                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result, timestamp=datetime.now().timestamp()))
 
             # Given the eqf level and the cluster number of
             # the last learning unit completed by the user
@@ -151,6 +173,21 @@ def predict_for_user(user_id: int, last_item_id: str, result: float, random_mode
                     user = user_repository.update_eqf(user['id'], int(
                         skill) - 1, int(cluster_number) - 1, str(user_eqf))
 
+        elif int(last_item_id) != -1 and is_last_lm == True:
+            # Update user labour market Learning Unit history with last_item_id
+            user = user_repository.update_lm_history(
+                user['id'], LMLearningUnit(identifier=last_item_id))
+
+            # Get standard last_item_id
+            last_item_id = get_last_lu_id_by_timestamp(user)
+
+        # Check if it is necessary to recommend labour market Learning Unit
+        if user['lu_counter'] >= 5:
+            lm_lu_ids = get_lm_recommendations(user, lm_items)
+            if len(lm_lu_ids) > 0:
+                return True, lm_lu_ids[0:1]
+
+
         user_in_model: bool = check_user_in_model(user_id, dataset.users_list)
 
         # If recommendations are for a user which is not
@@ -158,9 +195,28 @@ def predict_for_user(user_id: int, last_item_id: str, result: float, random_mode
         if user_in_model == False:
             train_model()
 
-        # Get recommendations from pipeline
-        return get_from_pipeline(model=model, dataset=dataset, user=user, last_item_id=last_item_id)
+        print("lastt " + last_item_id)
 
+        # Get recommendations from pipeline
+        return False, get_from_pipeline(model=model, dataset=dataset, user=user, last_item_id=last_item_id)
+
+
+def get_last_lu_id_by_timestamp(user):
+    completed_lus = sorted(user['completed_lus'], key=lambda d: d['timestamp'], reverse=True)
+    return completed_lus[0]["lu_id"]
+
+'''
+This function gets (not viewed) labour market learning
+unit recommendations for a given user.
+'''
+def get_lm_recommendations(user, lm_items):
+    
+    user_lm_ids = list(map(lambda i: i['identifier'], user['completed_lm_lus']))
+    lm_ids = list(map(lambda i: i['identifier'], lm_items))
+
+    random.shuffle(lm_ids)
+
+    return list(filter(lambda i: i not in user_lm_ids, lm_ids))
 
 '''
 This function is a wrapper function for the
@@ -443,21 +499,45 @@ This function checks if last_lu_id is valid:
 - the id must not be found in the user's consumed learning unit list.
 If last_item_id is not valid it triggers an exception.
 '''
-def check_valid_item(last_item_id, items, user):
+def check_valid_item(is_last_lm, last_item_id, items, lm_items, user):
+
+    # Check for existing item if it is from labour market
+    if is_last_lm == True and last_item_id not in list(map(lambda i: i['identifier'], lm_items)):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f'Item With ID={last_item_id} Not Found.')
+
+    
+    # Check if is_last_lm is a valid value.
+    if is_last_lm == True and user['lu_counter'] != 5:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f'Item With ID={last_item_id} Not Accepted.')
+
+    # Check if the user has already seen the labour market item
+    if is_last_lm == True and int(last_item_id) in [int(lu['identifier']) for lu in user['completed_lm_lus']]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f'Item With ID={last_item_id} Not Accepted.')
+
+    
+    user_lm_ids = list(map(lambda i: i['identifier'], user['completed_lm_lus']))
+    lm_ids = list(map(lambda i: i['identifier'], lm_items))
+
+    if is_last_lm == False and (user['lu_counter'] < 0 or user['lu_counter'] >= 5) and len(user_lm_ids) < len(lm_ids):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f'Item With ID={last_item_id} Not Accepted.')
 
     # Check for existing item
-    if int(last_item_id) != -1 and len(list(filter(lambda item: item['identifier'] == last_item_id, items))) == 0:
+    if is_last_lm == False and int(last_item_id) != -1 and len(list(filter(lambda item: item['identifier'] == last_item_id, items))) == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Item With ID={last_item_id} Not Found.')
 
     # Check if received last_item_id == -1 but
     # the user has already seen some items
-    if int(last_item_id) == -1 and len(user.get('completed_lus')) != 0:
+    if is_last_lm == False and int(last_item_id) == -1 and len(user.get('completed_lus')) != 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f'Item With ID={last_item_id} Not Accepted.')
 
     # Check if the user has already seen the item
-    if int(last_item_id) in [int(lu['lu_id']) for lu in user.get('completed_lus')]:
+    if is_last_lm == False and int(last_item_id) in [int(lu['lu_id']) for lu in user.get('completed_lus')]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f'Item With ID={last_item_id} Not Accepted.')
 

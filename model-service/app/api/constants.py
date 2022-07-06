@@ -18,8 +18,10 @@ class FilePath():
     __BASE_DATA_PATH = "base_data/"
     BASE_LU_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + __BASE_DATA_PATH + "items.json"
     BASE_USER_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + __BASE_DATA_PATH + "users.json"
+    LM_LU_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + "lm_learning_units_json.json"
     LU_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + "learning_units_json.json"
     USER_JSON_PATH = __LOCAL_DATASET_FOLDER_PATH + "users_json.json"
+    LM_LU_PICKLE_PATH = __LOCAL_DATASET_FOLDER_PATH + "lm_learning_units_pickle.pickle"
     LU_PICKLE_PATH = __LOCAL_DATASET_FOLDER_PATH + "learning_units_pickle.pickle"
     USER_PICKLE_PATH = __LOCAL_DATASET_FOLDER_PATH + "users_pickle.pickle"
 
@@ -37,13 +39,13 @@ class DataSource(Enum):
 # Load/Store Dataset State
 class DatasetState():
     INTERACTIONS = "interactions"
-    TEST_INTERACTIONS = "test_interactions"
     USER_FEATURES_MATRIX = "user_features_matrix"
     ITEM_FEATURES_MATRIX = "item_features_matrix"
     USER_FEATURES = "user_features"
     ITEM_FEATURES = "item_features"
     USERS_LIST = "users_list"
     ITEMS_LIST = "items_list"
+    LM_ITEMS_LIST = "lm_items_list"
     DATASET = "dataset"
 
 # Mapping of user and items
