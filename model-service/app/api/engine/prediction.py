@@ -144,13 +144,13 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
         user = check_valid_user(user_id, users)
 
         # Check if last item id is a valid id. -1 is allowed (user with zero interactions)
-        check_valid_item(last_item_id, items, user)
+        check_valid_item(is_last_lm=is_last_lm, last_item_id=last_item_id, items=items, lm_items=lm_items, user=user)
 
         # Check if result value is valid
         check_valid_result(result)
 
         # Update user Learning Unit history with last_item_id
-        if int(last_item_id) != -1:
+        if int(last_item_id) != -1 and is_last_lm == False:
             user = user_repository.update_history(
                 user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result))
 
@@ -172,6 +172,21 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
                     user = user_repository.update_eqf(user['id'], int(
                         skill) - 1, int(cluster_number) - 1, str(user_eqf))
 
+        elif int(last_item_id) != -1 and is_last_lm == True:
+            # Update user labour market Learning Unit history with last_item_id
+            user = user_repository.update_lm_history(
+                user['id'], LMLearningUnit(identifier=last_item_id))
+
+        # Check if it is necessary to recommend labour market Learning Unit
+        if user['lu_counter'] == 5:
+            lm_lu_ids = get_lm_recommendations(user, lm_items)
+            if len(lm_lu_ids) > 0:
+                return True, lm_lu_ids[0:1]
+            # else:
+                #TODO: Here we have no labour market lus to reccommend.
+                #      We should get last_lu_id using timestamp in order to recommend.
+
+
         user_in_model: bool = check_user_in_model(user_id, dataset.users_list)
 
         # If recommendations are for a user which is not
@@ -180,7 +195,7 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
             train_model()
 
         # Get recommendations from pipeline
-        return get_from_pipeline(model=model, dataset=dataset, user=user, last_item_id=last_item_id)
+        return False, get_from_pipeline(model=model, dataset=dataset, user=user, last_item_id=last_item_id)
 
 '''
 This function gets (not viewed) labour market learning
