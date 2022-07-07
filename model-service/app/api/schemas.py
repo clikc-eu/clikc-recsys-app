@@ -80,6 +80,7 @@ class CompletedLearningUnit(BaseModel):
     lu_id: str # Learning Unit identifier
     result: float   # Result in percentage
     timestamp: float  # Timestamp when learning unit was registered as completed
+    liked: bool       # Assume like/dislike must be mandatory. If liked -> True. If not liked -> False.
 
 '''
 User model

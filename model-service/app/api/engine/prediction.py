@@ -26,7 +26,7 @@ from datetime import datetime
 '''
 
 
-def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: float, random_mode: bool):
+def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: float, liked: bool, random_mode: bool):
 
     if random_mode == True:
         # Recommendations made randomly
@@ -56,7 +56,7 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
         if int(last_item_id) != -1 and is_last_lm == False:
             # Update user Learning Unit history with last_item_id
             user = user_repository.update_history(
-                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result, timestamp=datetime.now().timestamp()))
+                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result, timestamp=datetime.now().timestamp(), liked=liked))
 
             # Given the eqf level and the cluster number of
             # the last learning unit completed by the user
@@ -153,7 +153,7 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
         # Update user Learning Unit history with last_item_id
         if int(last_item_id) != -1 and is_last_lm == False:
             user = user_repository.update_history(
-                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result, timestamp=datetime.now().timestamp()))
+                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result, timestamp=datetime.now().timestamp(), liked=liked))
 
             # Given the eqf level and the cluster number of
             # the last learning unit completed by the user
