@@ -53,8 +53,6 @@ For a fast usage go to https://localhost:8080/api/v1/recsys-interface/docs.
 - Background training is performed via APScheduler library.
 - Communication between microservices is performed via AIOHTTP library.
 - Keyword extraction is performed via spaCy.
-- Json schema (local dataset) validation is performed via 
-jsonschema.
 
 ### Credits & Documentations
 - LightFM Documentation: https://making.lyst.com/lightfm/docs/home.html
