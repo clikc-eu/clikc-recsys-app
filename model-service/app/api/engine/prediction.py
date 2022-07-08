@@ -26,7 +26,7 @@ from datetime import datetime
 '''
 
 
-def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: float, random_mode: bool):
+def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: float, liked: bool, random_mode: bool):
 
     if random_mode == True:
         # Recommendations made randomly
@@ -56,7 +56,7 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
         if int(last_item_id) != -1 and is_last_lm == False:
             # Update user Learning Unit history with last_item_id
             user = user_repository.update_history(
-                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result, timestamp=datetime.now().timestamp()))
+                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result, timestamp=datetime.now().timestamp(), liked=liked))
 
             # Given the eqf level and the cluster number of
             # the last learning unit completed by the user
@@ -106,8 +106,9 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
             del i['identifier']
 
         # Use Learning Path rules (eqf, etc..)
+        res = apply_filter_two(user=user, items=item_with_no_interaction)
         # ids are obtained here
-        result = apply_filter_two(user=user, items=item_with_no_interaction)
+        result = [item['id'] for item in res]
 
         # If after self assessment phase, select items
         # from favourite clusters
@@ -153,7 +154,7 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
         # Update user Learning Unit history with last_item_id
         if int(last_item_id) != -1 and is_last_lm == False:
             user = user_repository.update_history(
-                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result, timestamp=datetime.now().timestamp()))
+                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result, timestamp=datetime.now().timestamp(), liked=liked))
 
             # Given the eqf level and the cluster number of
             # the last learning unit completed by the user
@@ -194,8 +195,6 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
         # in the model dataset, re-build dataset and train the model
         if user_in_model == False:
             train_model()
-
-        print("lastt " + last_item_id)
 
         # Get recommendations from pipeline
         return False, get_from_pipeline(model=model, dataset=dataset, user=user, last_item_id=last_item_id)
@@ -255,7 +254,7 @@ def get_from_pipeline(model, dataset, user, last_item_id):
 
     path_b_results = list()
     if int(last_item_id) != -1:
-        path_b_results = get_from_path_b(model=model, user=user,last_item_id=last_item_id, path_a_results=path_a_results, dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids)
+        path_b_results = get_from_path_b(model=model, user=user,last_item_id=last_item_id, path_a_results=path_a_results, dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids, use_likes=True)
 
     path_c_results = list()
     if int(last_item_id) != -1:
@@ -286,9 +285,6 @@ def apply_filter_two(user, items):
                            (user_eqf[3][0] == item['eqf_level'] and item['skill'] == "4" and item['cluster_number'] == "1") or
                            (user_eqf[3][1] == item['eqf_level'] and item['skill'] == "4" and item['cluster_number'] == "2") or
                            (user_eqf[3][2] == item['eqf_level'] and item['skill'] == "4" and item['cluster_number'] == "3"), items))
-
-
-    filtered = [item['id'] for item in filtered]
 
     return filtered
 
@@ -328,7 +324,8 @@ def get_from_path_a(model, user, internal_user_id, num_items, dataset, item_with
                                       item_with_no_interaction_ids=item_with_no_interaction_ids)
 
     # Filter 2: Filter by skill, cluster, eqf level
-    path_a_result = apply_filter_two(user=user, items=path_a_results)
+    path_a_res = apply_filter_two(user=user, items=path_a_results)
+    path_a_result = [item['id'] for item in path_a_res]
 
     # If after self-assessment phase return all ids
     if int(last_item_id) == -1:
@@ -343,7 +340,7 @@ This function represents Path B of the recommendation pipeline.
 It uses cosine similarity to get the most similar item
 to previous one.
 '''
-def get_from_path_b(model, user, last_item_id, path_a_results: List, dataset, item_with_no_interaction_ids):
+def get_from_path_b(model, user, last_item_id, path_a_results: List, dataset, item_with_no_interaction_ids, use_likes):
     
     internal_item_id = map_id_external_to_internal(
         dataset=dataset.dataset, external_id=str(last_item_id), id_type=MappingType.ITEM_ID_TYPE)
@@ -365,13 +362,27 @@ def get_from_path_b(model, user, last_item_id, path_a_results: List, dataset, it
         id_type=MappingType.ITEM_ID_TYPE, item_with_no_interaction_ids=item_with_no_interaction_ids)
 
     # Filter 2: Filter by skill, cluster, eqf level
-    path_b_results = apply_filter_two(user=user, items=path_b_results)
-
-    # Filter 3b: Take top score recommendation and exclude
-    # the element taken in path A
+    path_b_res = apply_filter_two(user=user, items=path_b_results)
+    
+    # Filter 3b:  If user liked latest item take top score. 
+    # Else take top score <= of 0.5 (of similarity), 
+    # different from the one taken in pipeline A.
+    # If we have no top score item with similarity <= 0.5
+    # use top score element (standard)
     # IMPORTANT: keep sorted elements here!
-    path_b_result = list(filter(lambda i: i not in path_a_results, path_b_results))
+    path_b_results = list(filter(lambda i: i['id'] not in path_a_results, path_b_res))
 
+    if use_likes == True:
+        # If user liked last element everything is ok (take top score). Check for dislike only.
+        last_item = list(filter(lambda i: i['lu_id'] == str(last_item_id), user['completed_lus']))[0]
+
+        if last_item['liked'] == False:
+            # User disliked last item.
+            dis_path_b_results = list(filter(lambda i: i['score'] <= 0.5, path_b_results))
+            if len(dis_path_b_results) > 0:
+                path_b_results = dis_path_b_results
+
+    path_b_result = [item['id'] for item in path_b_results]
     return path_b_result[0:1]
 
 '''
@@ -387,14 +398,14 @@ def get_from_path_c(model, user, last_item_id, previous_path_results: List, data
 
     # If only one completed apply path B again excluding previous result
     if len(completed_items) == 1:
-        return get_from_path_b(model=model, user=user, last_item_id=last_item_id, path_a_results=previous_path_results, dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids)
+        return get_from_path_b(model=model, user=user, last_item_id=last_item_id, path_a_results=previous_path_results, dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids, use_likes=False)
 
     good_items = list(filter(lambda item: item['result'] >= 0.6, completed_items))
 
     # Here we have more than one item completed.
     # If we get no good results re-apply path B again.
     if len(good_items) == 0:
-        return get_from_path_b(model=model, user=user, last_item_id=last_item_id, path_a_results=previous_path_results, dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids)
+        return get_from_path_b(model=model, user=user, last_item_id=last_item_id, path_a_results=previous_path_results, dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids, use_likes=False)
 
     # Here we have at least one good result.
     # For a random element, taken among the elements the user obtained a result >= 60%,
@@ -406,7 +417,7 @@ def get_from_path_c(model, user, last_item_id, previous_path_results: List, data
 
     good_item = good_items[0]
 
-    path_c_result += get_from_path_b(model=model, user=user, last_item_id=good_item['lu_id'], path_a_results=previous_path_results, dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids)
+    path_c_result += get_from_path_b(model=model, user=user, last_item_id=good_item['lu_id'], path_a_results=previous_path_results, dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids, use_likes=False)
 
     return path_c_result[0:1]
 

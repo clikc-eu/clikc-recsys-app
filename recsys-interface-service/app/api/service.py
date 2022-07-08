@@ -46,17 +46,22 @@ class RecsysInterfaceService():
     This is the microservice method in charge of contacting the Model microservice
     in order to forward recommendation requests for a given user.
     '''
-    async def get_recommendations_for_user(self, user_id: int, is_last_lm: bool, last_lu_id: int, result: float, client_session: ClientSession):
+    async def get_recommendations_for_user(self, user_id: int, is_last_lm: bool, last_lu_id: int, result: float, liked: bool, client_session: ClientSession):
 
         # AIOHTTP does not send boolean values
         last_lm = 0
         if is_last_lm == True:
             last_lm = 1
 
+        is_liked = 0
+        if liked == True:
+            is_liked = 1
+
         params = {
             'is_last_lm': last_lm,
             'last_lu_id': last_lu_id,
-            'result': result
+            'result': result,
+            'liked': is_liked
         }
         headers = {'access-token': recsys_interface.MODEL_SERVICE_API_KEY}
         try:

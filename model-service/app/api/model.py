@@ -75,15 +75,23 @@ Default value is -1. It means that the first Learning Unit, after the self asses
 must be recommended.
 '''
 @model.get('/recommendations/user/{user_id}', response_model=RecommendOut, status_code=status.HTTP_200_OK)
-def get_recommendations_for_user(user_id: int, is_last_lm: int, last_lu_id: int = -1, result: float = 1.0, api_key: APIKey = Depends(authentication)):
+def get_recommendations_for_user(user_id: int, is_last_lm: int, last_lu_id: int = -1, result: float = 1.0, liked: int = 1, api_key: APIKey = Depends(authentication)):
 
+    # Switch from integers to bools where necessary
     if is_last_lm < 0 or is_last_lm > 1:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f'is_last_lm={is_last_lm} Value Is Not Valid.')
 
     last_lm = False
-
     if is_last_lm == 1:
         last_lm = True
 
-    return ModelService().get_recommendations_for_user(user_id=user_id, is_last_lm=last_lm, last_lu_id=str(last_lu_id), result=result)
+    if liked < 0 or liked > 1:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f'liked={liked} Value Is Not Valid.')
+
+    is_liked = False
+    if liked == 1:
+        is_liked = True
+
+    return ModelService().get_recommendations_for_user(user_id=user_id, is_last_lm=last_lm, last_lu_id=str(last_lu_id), result=result, liked=is_liked)

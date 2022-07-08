@@ -83,7 +83,7 @@ async def train_model(client_session: ClientSession = Depends(client_session_dep
 
 
 @recsys_interface.get('/recommendations/user/{user_id}', response_model=RecommendOut, status_code=status.HTTP_200_OK)
-async def get_recommendations_for_user(user_id: int, is_last_lm: bool, last_lu_id: int = -1, result: float = 1.0, client_session: ClientSession = Depends(client_session_dep), api_key: APIKey = Depends(authentication)):
+async def get_recommendations_for_user(user_id: int, is_last_lm: bool, last_lu_id: int = -1, result: float = 1.0, liked: bool = True, client_session: ClientSession = Depends(client_session_dep), api_key: APIKey = Depends(authentication)):
 
     '''
     This endpoint allows us to obtain recommendations for a given user given its id 'user_id'.
@@ -94,4 +94,4 @@ async def get_recommendations_for_user(user_id: int, is_last_lm: bool, last_lu_i
     'is_last_lm' specifies the type of last_lu_id: it can be from labour market learning units or not.
     '''
 
-    return await RecsysInterfaceService().get_recommendations_for_user(user_id=user_id, is_last_lm=is_last_lm, last_lu_id=last_lu_id, result=result, client_session=client_session)
+    return await RecsysInterfaceService().get_recommendations_for_user(user_id=user_id, is_last_lm=is_last_lm, last_lu_id=last_lu_id, result=result, liked=liked, client_session=client_session)
