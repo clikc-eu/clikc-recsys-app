@@ -6,13 +6,6 @@ This is the CLIKC Recommender System Application repository for development.
 It has been developed by using LightFM for the recommender part and FastAPI
 for the microservice part.
 
-#### Random mode (JUST IN CASE)
-If necessary, the recommendation system can be started in "random" mode. This mode allows you to provide recommendations randomly.
-To do this you need to open the "configuration.json" file (not included in this repository), in click-recsys-app -> model-service, and set the "random_mode" field to "true". Then start the recommendation system as previously described.
-
-#### Recommendation Pipeline:
-![](docs/images/pipeline.png?raw=true)
-
 ### Backend Interface microservice endpoints (MUST USE THESE)
 - Go to https://localhost:8080/api/v1/recsys-interface/docs (GET) to get the documentation about.
 - Go to https://localhost:8080/api/v1/recsys-interface/status (GET) to get service status.
