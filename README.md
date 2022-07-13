@@ -1,4 +1,7 @@
-# CLIKC Recsys App
+![](docs/images/clikc_eu_logos.png?raw=true)
+#### Content and Language Integrated learning for Key Competences
+
+# CLIKC Recommender System Application
 This is the CLIKC Recommender System Application repository for development.
 It has been developed by using LightFM for the recommender part and FastAPI
 for the microservice part.
