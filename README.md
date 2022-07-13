@@ -6,13 +6,6 @@ This is the CLIKC Recommender System Application repository for development.
 It has been developed by using LightFM for the recommender part and FastAPI
 for the microservice part.
 
-### Notes
-- Automatic training is set to run at 1:30 AM (CET).
-- One training request can be accepted at a time. Next calls will be ignored until current training is done.
-- Background training is performed via APScheduler library.
-- Communication between microservices is performed via AIOHTTP library.
-- Keyword extraction is performed via spaCy.
-
 ### Credits & Documentations
 - LightFM Documentation: https://making.lyst.com/lightfm/docs/home.html
 - LightFM repository: https://github.com/lyst/lightfm
