@@ -11,8 +11,10 @@ import numpy as np
 from lightfm.data import Dataset as LightDataset
 from fastapi import HTTPException, status
 from ..repository import lm_learning_unit as lm_lu_repository, learning_unit as lu_repository, user as user_repository
-from ..schemas import CompletedLearningUnit, LMLearningUnit
+from ..schemas import CompletedLMLearningUnit, CompletedLearningUnit, LMLearningUnit
 from datetime import datetime
+from sqlalchemy.orm import Session
+
 
 '''
     This functionality performs a prediction for
@@ -26,12 +28,12 @@ from datetime import datetime
 '''
 
 
-def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: float, liked: bool, random_mode: bool):
+def predict_for_user(user_id: int, random_mode: bool, db: Session):
 
     if random_mode == True:
         # Recommendations made randomly
 
-        item_data = lu_repository.get_all()
+        item_data = lu_repository.get_all(db)
 
         # Items as Python dictionary
         items = pd.DataFrame.from_records(
@@ -41,23 +43,19 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
         lm_items = lm_lu_repository.get_all()
 
         # Users as Python dictionary
-        # TODO: get users from online DB
+        # TODO: get users from online DB - to get updated data about completed LUs
         users = user_repository.get_all()
 
         # Check if user_id is valid
         user = check_valid_user(user_id, users)
 
+        # Determine last_item_id and if it was a labour marker LU or not
+        is_last_lm, last_item_id = determine_last_item(user)
+
         # Check if last item id is a valid id. -1 is allowed (user with zero interactions)
         check_valid_item(is_last_lm=is_last_lm, last_item_id=last_item_id, items=items, lm_items=lm_items, user=user)
 
-        # Check if result value is valid
-        check_valid_result(result)
-
         if int(last_item_id) != -1 and is_last_lm == False:
-            # Update user Learning Unit history with last_item_id
-            user = user_repository.update_history(
-                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result, timestamp=datetime.now().timestamp(), liked=liked))
-
             # Given the eqf level and the cluster number of
             # the last learning unit completed by the user
             # check if it is possible to increase the eqf_level
@@ -65,7 +63,7 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
             # This happens only when all the learning units of a cluster have
             # been completed for a given eqf level.
             increase, skill, cluster_number = check_eqf_level_completed(
-                user=user, last_item_id=last_item_id, items=items)
+                user=user, last_item_id=int(last_item_id), items=items)
 
             if increase == True:
                 # eqf level must be increased if it is possible (eqf_level < 4)
@@ -75,14 +73,6 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
                     user_eqf += 1
                     user = user_repository.update_eqf(user['id'], int(
                         skill) - 1, int(cluster_number) - 1, str(user_eqf))
-
-        elif int(last_item_id) != -1 and is_last_lm == True:
-            # Update user labour market Learning Unit history with last_item_id
-            user = user_repository.update_lm_history(
-                user['id'], LMLearningUnit(identifier=last_item_id))
-
-            # Get standard last_item_id
-            last_item_id = get_last_lu_id_by_timestamp(user)
 
         # Check if it is necessary to recommend labour market Learning Unit
         if user['lu_counter'] >= 5:
@@ -96,14 +86,9 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
             items, user)
 
         item_with_no_interaction = list(
-            filter(lambda i: i['identifier'] in item_with_no_interaction_ids, items))
+            filter(lambda i: i['id'] in item_with_no_interaction_ids, items))
 
         random.shuffle(item_with_no_interaction)
-
-        # Rename identifier field in id
-        for i in item_with_no_interaction:
-            i['id'] = i.get('identifier')
-            del i['identifier']
 
         # Use Learning Path rules (eqf, etc..)
         res = apply_filter_two(user=user, items=item_with_no_interaction)
@@ -128,14 +113,17 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
         dataset = Dataset(data_source=DataSource.PICKLE)
         model = load_data(FilePath.TRAINED_MODEL_PICKLE_PATH)
 
+        # TODO: To be removed
         # Since dataset is built on training request: users, items
         # and user history may be different from
         # online db. Use data from online db for checks
-        item_data = lu_repository.get_all()
+        # item_data = lu_repository.get_all(db=db)
 
         # Items as Python dictionary
-        items = pd.DataFrame.from_records(
-            [item.dict() for item in item_data]).to_dict('records')
+        # items = pd.DataFrame.from_records(
+        #     [item.dict() for item in item_data]).to_dict('records')
+
+        items = dataset.items_list
 
         # Labour market items as Python dictionary
         lm_items = lm_lu_repository.get_all()
@@ -145,17 +133,13 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
         # Check if user_id is valid
         user = check_valid_user(user_id, users)
 
+        # Determine last_item_id and if it was a labour marker LU or not
+        is_last_lm, last_item_id = determine_last_item(user)
+
         # Check if last item id is a valid id. -1 is allowed (user with zero interactions)
-        check_valid_item(is_last_lm=is_last_lm, last_item_id=last_item_id, items=items, lm_items=lm_items, user=user)
+        check_valid_item(is_last_lm=is_last_lm, last_item_id=int(last_item_id), items=items, lm_items=lm_items, user=user)
 
-        # Check if result value is valid
-        check_valid_result(result)
-
-        # Update user Learning Unit history with last_item_id
         if int(last_item_id) != -1 and is_last_lm == False:
-            user = user_repository.update_history(
-                user['id'], CompletedLearningUnit(lu_id=last_item_id, result=result, timestamp=datetime.now().timestamp(), liked=liked))
-
             # Given the eqf level and the cluster number of
             # the last learning unit completed by the user
             # check if it is possible to increase the eqf_level
@@ -163,7 +147,7 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
             # This happens only when all the learning units of a cluster have
             # been completed for a given eqf level.
             increase, skill, cluster_number = check_eqf_level_completed(
-                user=user, last_item_id=last_item_id, items=items)
+                user=user, last_item_id=int(last_item_id), items=items)
 
             if increase == True:
                 # eqf level must be increased if it is possible (eqf_level < 4)
@@ -173,14 +157,6 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
                     user_eqf += 1
                     user = user_repository.update_eqf(user['id'], int(
                         skill) - 1, int(cluster_number) - 1, str(user_eqf))
-
-        elif int(last_item_id) != -1 and is_last_lm == True:
-            # Update user labour market Learning Unit history with last_item_id
-            user = user_repository.update_lm_history(
-                user['id'], LMLearningUnit(identifier=last_item_id))
-
-            # Get standard last_item_id
-            last_item_id = get_last_lu_id_by_timestamp(user)
 
         # Check if it is necessary to recommend labour market Learning Unit
         if user['lu_counter'] >= 5:
@@ -197,12 +173,8 @@ def predict_for_user(user_id: int, is_last_lm: bool, last_item_id: str, result: 
             train_model()
 
         # Get recommendations from pipeline
-        return False, get_from_pipeline(model=model, dataset=dataset, user=user, last_item_id=last_item_id)
+        return False, get_from_pipeline(model=model, dataset=dataset, user=user, last_item_id=int(last_item_id))
 
-
-def get_last_lu_id_by_timestamp(user):
-    completed_lus = sorted(user['completed_lus'], key=lambda d: d['timestamp'], reverse=True)
-    return completed_lus[0]["lu_id"]
 
 '''
 This function gets (not viewed) labour market learning
@@ -210,8 +182,8 @@ unit recommendations for a given user.
 '''
 def get_lm_recommendations(user, lm_items):
     
-    user_lm_ids = list(map(lambda i: i['identifier'], user['completed_lm_lus']))
-    lm_ids = list(map(lambda i: i['identifier'], lm_items))
+    user_lm_ids = list(map(lambda i: i['id'], user['completed_lm_lus']))
+    lm_ids = list(map(lambda i: i['id'], lm_items))
 
     random.shuffle(lm_ids)
 
@@ -245,11 +217,8 @@ def get_from_pipeline(model, dataset, user, last_item_id):
     if int(last_item_id) == -1:
         result = list()
         for id in path_a_results:
-            result.append(list(filter(lambda i: i['identifier'] == id, dataset.items_list))[0])
-        # Rename identifier field in id
-        for i in result:
-            i['id'] = i.get('identifier')
-            del i['identifier']
+            result.append(list(filter(lambda i: i['id'] == id, dataset.items_list))[0])
+        
         path_a_results = filter_by_fav_clusters(user=user, items=result)
 
     path_b_results = list()
@@ -302,7 +271,9 @@ def filter_by_fav_clusters(user, items):
 
     # Take 1 item for each favourite cluster
     for fav in user_fav_clusters:
-        filtered.append(list(filter(lambda item: item['skill'] == fav['skill'] and item['cluster_number'] == fav['cluster'], items))[0])
+        found = list(filter(lambda item: item['skill'] == fav['skill'] and item['cluster_number'] == fav['cluster'], items))
+        if len(found) > 0:
+            filtered.append(found[0])
 
     filtered = [item['id'] for item in filtered]
 
@@ -343,7 +314,7 @@ to previous one.
 def get_from_path_b(model, user, last_item_id, path_a_results: List, dataset, item_with_no_interaction_ids, use_likes):
     
     internal_item_id = map_id_external_to_internal(
-        dataset=dataset.dataset, external_id=str(last_item_id), id_type=MappingType.ITEM_ID_TYPE)
+        dataset=dataset.dataset, external_id=last_item_id, id_type=MappingType.ITEM_ID_TYPE)
 
     # Get latent representations
     (_, item_representations) = model.get_item_representations(
@@ -374,7 +345,7 @@ def get_from_path_b(model, user, last_item_id, path_a_results: List, dataset, it
 
     if use_likes == True:
         # If user liked last element everything is ok (take top score). Check for dislike only.
-        last_item = list(filter(lambda i: i['lu_id'] == str(last_item_id), user['completed_lus']))[0]
+        last_item = list(filter(lambda i: i['lu_id'] == last_item_id, user['completed_lus']))[0]
 
         if last_item['liked'] == False:
             # User disliked last item.
@@ -431,7 +402,7 @@ a Learning Unit.
 def check_eqf_level_completed(user, last_item_id, items):
     # Get current item
     lu = list(
-        filter(lambda item: item['identifier'] == last_item_id, items))[0]
+        filter(lambda item: item['id'] == last_item_id, items))[0]
 
     # Get items for a specific skill, cluster and eqf levels
     cluster_eqf_items = list(filter(lambda item: item['skill'] == lu['skill'] and item['cluster_number']
@@ -440,7 +411,7 @@ def check_eqf_level_completed(user, last_item_id, items):
     # Get items for a specific skill, cluster and eqf levels
     # completed by a user
     all_completed_lus_ids = [l['lu_id'] for l in user['completed_lus']]
-    cluster_eqf_completed_lus = list(filter(lambda item: item['identifier'] in all_completed_lus_ids and item['skill']
+    cluster_eqf_completed_lus = list(filter(lambda item: item['id'] in all_completed_lus_ids and item['skill']
                                      == lu['skill'] and item['cluster_number'] == lu['cluster_number'] and item['eqf_level'] == lu['eqf_level'], items))
 
     return len(cluster_eqf_completed_lus) == len(cluster_eqf_items), lu['skill'], lu['cluster_number']
@@ -470,7 +441,7 @@ def get_item_with_no_interaction_ids(items, user):
     item_with_interaction_ids = set(
         [lu["lu_id"] for lu in item_with_interaction_ids])
 
-    all_item_ids = set([item['identifier']
+    all_item_ids = set([item['id']
                         for item in items])
 
     item_with_no_interaction_ids = list(
@@ -513,7 +484,7 @@ If last_item_id is not valid it triggers an exception.
 def check_valid_item(is_last_lm, last_item_id, items, lm_items, user):
 
     # Check for existing item if it is from labour market
-    if is_last_lm == True and last_item_id not in list(map(lambda i: i['identifier'], lm_items)):
+    if is_last_lm == True and int(last_item_id) not in list(map(lambda i: i['id'], lm_items)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Item With ID={last_item_id} Not Found.')
 
@@ -522,22 +493,16 @@ def check_valid_item(is_last_lm, last_item_id, items, lm_items, user):
     if is_last_lm == True and user['lu_counter'] != 5:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f'Item With ID={last_item_id} Not Accepted.')
-
-    # Check if the user has already seen the labour market item
-    if is_last_lm == True and int(last_item_id) in [int(lu['identifier']) for lu in user['completed_lm_lus']]:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f'Item With ID={last_item_id} Not Accepted.')
-
     
-    user_lm_ids = list(map(lambda i: i['identifier'], user['completed_lm_lus']))
-    lm_ids = list(map(lambda i: i['identifier'], lm_items))
+    user_lm_ids = list(map(lambda i: i['id'], user['completed_lm_lus']))
+    lm_ids = list(map(lambda i: i['id'], lm_items))
 
     if is_last_lm == False and (user['lu_counter'] < 0 or user['lu_counter'] >= 5) and len(user_lm_ids) < len(lm_ids):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f'Item With ID={last_item_id} Not Accepted.')
 
     # Check for existing item
-    if is_last_lm == False and int(last_item_id) != -1 and len(list(filter(lambda item: item['identifier'] == last_item_id, items))) == 0:
+    if is_last_lm == False and int(last_item_id) != -1 and len(list(filter(lambda item: item['id'] == int(last_item_id), items))) == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Item With ID={last_item_id} Not Found.')
 
@@ -547,15 +512,9 @@ def check_valid_item(is_last_lm, last_item_id, items, lm_items, user):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f'Item With ID={last_item_id} Not Accepted.')
 
-    # Check if the user has already seen the item
-    if is_last_lm == False and int(last_item_id) in [int(lu['lu_id']) for lu in user.get('completed_lus')]:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f'Item With ID={last_item_id} Not Accepted.')
-
-
 '''
-    This functions sorts items the user has not interacted with by obtained
-    score.
+This function sorts items the user has not interacted with by obtained
+score.
 '''
 def sort_predictions(predictions, dataset: Dataset, id_type: MappingType, item_with_no_interaction_ids=None):
 
@@ -565,7 +524,6 @@ def sort_predictions(predictions, dataset: Dataset, id_type: MappingType, item_w
 
     # Rename 'identifier' in 'id'
     df_items = pd.DataFrame(dataset.items_list)
-    df_items.rename(columns={'identifier': 'id'}, inplace=True)
     df = df.join(df_items.set_index('id'), on='id')
 
     # Filter 1: remove items the user has already interacted with
@@ -575,3 +533,33 @@ def sort_predictions(predictions, dataset: Dataset, id_type: MappingType, item_w
     top_x = df.nlargest(df.shape[0], 'score')
 
     return top_x.to_dict('records')
+
+
+'''
+This function determines the last learning unit id (either from labour marker or not)
+and if it comes from labour market set or not.
+'''
+def determine_last_item(user):
+    completed_lus = user.get('completed_lus')
+    completed_lm_lus = user.get('completed_lm_lus')
+
+    # Case where the user has not completed any LUs yet.
+    if len(completed_lus) == 0:
+        return False, -1
+
+    max_ts_lu = list(filter(lambda lu: lu['timestamp'] == max([e['timestamp'] for e in completed_lus]), completed_lus))[0]
+    max_ts_lm_lu = list(filter(lambda lu: lu['timestamp'] == max([e['timestamp'] for e in completed_lm_lus]), completed_lm_lus))[0]
+
+    # Last LU was a standard Learning unit
+    if max_ts_lu['timestamp'] > max_ts_lm_lu['timestamp']:
+        return False, max_ts_lu['lu_id']
+    
+    # Last LU was a labour market Learning unit
+    if max_ts_lm_lu['timestamp'] > max_ts_lu['timestamp']:
+        return True, max_ts_lm_lu['id']
+
+    # Non realistic case where both timestamps are equal
+    return False, -1
+
+    
+    

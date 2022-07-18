@@ -1,12 +1,10 @@
 import json
-from json import JSONDecodeError
 import os
 import pickle
 import random
-from xml.dom import xmlbuilder
 from datetime import datetime
 import pandas as pd
-from ..schemas import User, CompletedLearningUnit, Cluster, LearningUnit, LMLearningUnit
+from ..schemas import User, CompletedLearningUnit, Cluster, LearningUnit, CompletedLMLearningUnit
 from typing import List
 from ..constants import FilePath
 
@@ -57,10 +55,11 @@ def generate_users():
         eqf_levels.append(random.sample(available_eqf_levels, 3))
 
         # Pick 3 favourite clusters
+        fav_clusters = list()
         fav_clusters = random.sample(available_clusters, 3)
 
         completed_lus: List[CompletedLearningUnit] = list()
-        completed_lm_lus: List[LMLearningUnit] = list()
+        completed_lm_lus: List[CompletedLMLearningUnit] = list()
         lu_counter = 0
 
         if i > 0:
@@ -82,13 +81,15 @@ def generate_users():
             k = 9
             for id in ids:
                 if lu_counter == 5:
-                    user_lm_is = list(map(lambda lm_i: lm_i.identifier, completed_lm_lus))
+                    user_lm_is = list(map(lambda lm_i: lm_i.id, completed_lm_lus))
                     lm_is = list(filter(lambda lm_i: lm_i not in user_lm_is, lm_lus))
+                    
                     if len(lm_is) > 0:
-                        completed_lm_lus.append(LMLearningUnit(identifier=lm_is[0]))
+                        completed_lm_lus.append(CompletedLMLearningUnit(id=lm_is[0], timestamp=datetime.now().timestamp()))
+
                     lu_counter = 0
                 
-                completed_lus.append(CompletedLearningUnit(lu_id=str(id.identifier), result=random.uniform(0, 1), timestamp=datetime.now().timestamp(), liked=True))  # results randomly generated
+                completed_lus.append(CompletedLearningUnit(lu_id=id.id, result=random.uniform(0, 1), timestamp=datetime.now().timestamp(), liked=True))  # results randomly generated
                 lu_counter += 1
                 k = k - 1
                 if k == 0:
@@ -101,13 +102,13 @@ def generate_users():
             k = 9
             for id in ids:
                 if lu_counter == 5:
-                    user_lm_is = list(map(lambda lm_i: lm_i.identifier, completed_lm_lus))
+                    user_lm_is = list(map(lambda lm_i: lm_i.id, completed_lm_lus))
                     lm_is = list(filter(lambda lm_i: lm_i not in user_lm_is, lm_lus))
                     if len(lm_is) > 0:
-                        completed_lm_lus.append(LMLearningUnit(identifier=lm_is[0]))
+                        completed_lm_lus.append(CompletedLMLearningUnit(id=lm_is[0], timestamp=datetime.now().timestamp()))
                     lu_counter = 0
 
-                completed_lus.append(CompletedLearningUnit(lu_id=str(id.identifier), result=random.uniform(0, 1), timestamp=datetime.now().timestamp(), liked=False))  # results randomly generated
+                completed_lus.append(CompletedLearningUnit(lu_id=id.id, result=random.uniform(0, 1), timestamp=datetime.now().timestamp(), liked=False))  # results randomly generated
                 lu_counter += 1
                 k = k - 1
                 if k == 0:
@@ -117,17 +118,17 @@ def generate_users():
             ids = item_data
             random.shuffle(ids)
             ids = list(filter(lambda lu: lu.eqf_level<=eqf_levels[int(lu.skill) - 1][int(lu.cluster_number) - 1], ids))
-            k = 9
+            k = 10
             for id in ids:
 
                 if lu_counter == 5:
-                    user_lm_is = list(map(lambda lm_i: lm_i.identifier, completed_lm_lus))
+                    user_lm_is = list(map(lambda lm_i: lm_i.id, completed_lm_lus))
                     lm_is = list(filter(lambda lm_i: lm_i not in user_lm_is, lm_lus))
                     if len(lm_is) > 0:
-                        completed_lm_lus.append(LMLearningUnit(identifier=lm_is[0]))
+                        completed_lm_lus.append(CompletedLMLearningUnit(id=lm_is[0], timestamp=datetime.now().timestamp()))
                     lu_counter = 0
 
-                completed_lus.append(CompletedLearningUnit(lu_id=str(id.identifier), result=random.uniform(0, 1), timestamp=datetime.now().timestamp(), liked=True))  # results randomly generated
+                completed_lus.append(CompletedLearningUnit(lu_id=id.id, result=random.uniform(0, 1), timestamp=datetime.now().timestamp(), liked=True))  # results randomly generated
                 lu_counter += 1
                 k = k - 1
                 if k == 0:

@@ -6,6 +6,8 @@ from .schemas import RecommendOut, StatusOut, StatusTrainingOut
 from .constants import TrainingJob
 from app import main
 from apscheduler.schedulers import base
+from sqlalchemy.orm import Session
+
 
 
 class ModelService():
@@ -22,6 +24,6 @@ class ModelService():
             next_run_time=datetime.datetime.now())
         return StatusTrainingOut(training_triggered=True)
 
-    def get_recommendations_for_user(self, user_id: int, is_last_lm: bool, last_lu_id: str, result: float, liked: bool):
-        is_labour_market, ids = prediction.predict_for_user(user_id=user_id, is_last_lm=is_last_lm, last_item_id=last_lu_id, result=result, liked=liked, random_mode=main.random_mode)
+    def get_recommendations_for_user(self, user_id: int, db: Session):
+        is_labour_market, ids = prediction.predict_for_user(user_id=user_id, random_mode=main.random_mode, db=db)
         return RecommendOut(is_labour_market=is_labour_market, ids=ids)

@@ -16,6 +16,6 @@ def generate_lm_learning_units():
     ids = list(map(lambda id: str(id), ids))
 
     for id in ids:
-        lm_learning_units.append(LMLearningUnit(identifier=id))
+        lm_learning_units.append(LMLearningUnit(id=id))
 
     return lm_learning_units
