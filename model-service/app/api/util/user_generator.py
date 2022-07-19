@@ -118,7 +118,7 @@ def generate_users():
             ids = item_data
             random.shuffle(ids)
             ids = list(filter(lambda lu: lu.eqf_level<=eqf_levels[int(lu.skill) - 1][int(lu.cluster_number) - 1], ids))
-            k = 10
+            k=4
             for id in ids:
 
                 if lu_counter == 5:
@@ -127,6 +127,8 @@ def generate_users():
                     if len(lm_is) > 0:
                         completed_lm_lus.append(CompletedLMLearningUnit(id=lm_is[0], timestamp=datetime.now().timestamp()))
                     lu_counter = 0
+                    # if k == 1:
+                    #     break
 
                 completed_lus.append(CompletedLearningUnit(lu_id=id.id, result=random.uniform(0, 1), timestamp=datetime.now().timestamp(), liked=True))  # results randomly generated
                 lu_counter += 1

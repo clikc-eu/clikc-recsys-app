@@ -75,7 +75,7 @@ def predict_for_user(user_id: int, random_mode: bool, db: Session):
                         skill) - 1, int(cluster_number) - 1, str(user_eqf))
 
         # Check if it is necessary to recommend labour market Learning Unit
-        if user['lu_counter'] >= 5:
+        if len(user['completed_lus']) % 5 == 0 and len(user['completed_lus']) > 0 and is_last_lm == False:
             lm_lu_ids = get_lm_recommendations(user, lm_items)
             if len(lm_lu_ids) > 0:
                 return True, lm_lu_ids[0:1]
@@ -113,16 +113,6 @@ def predict_for_user(user_id: int, random_mode: bool, db: Session):
         dataset = Dataset(data_source=DataSource.PICKLE)
         model = load_data(FilePath.TRAINED_MODEL_PICKLE_PATH)
 
-        # TODO: To be removed
-        # Since dataset is built on training request: users, items
-        # and user history may be different from
-        # online db. Use data from online db for checks
-        # item_data = lu_repository.get_all(db=db)
-
-        # Items as Python dictionary
-        # items = pd.DataFrame.from_records(
-        #     [item.dict() for item in item_data]).to_dict('records')
-
         items = dataset.items_list
 
         # Labour market items as Python dictionary
@@ -159,7 +149,7 @@ def predict_for_user(user_id: int, random_mode: bool, db: Session):
                         skill) - 1, int(cluster_number) - 1, str(user_eqf))
 
         # Check if it is necessary to recommend labour market Learning Unit
-        if user['lu_counter'] >= 5:
+        if len(user['completed_lus']) % 5 == 0 and len(user['completed_lus']) > 0 and is_last_lm == False:
             lm_lu_ids = get_lm_recommendations(user, lm_items)
             if len(lm_lu_ids) > 0:
                 return True, lm_lu_ids[0:1]
@@ -171,6 +161,11 @@ def predict_for_user(user_id: int, random_mode: bool, db: Session):
         # in the model dataset, re-build dataset and train the model
         if user_in_model == False:
             train_model()
+
+        if is_last_lm == True:
+            # We need to get last standard Learning Unit id in order
+            # to maintain continuity for the similarity
+            last_item_id = get_last_lu_id_by_timestamp(user=user)
 
         # Get recommendations from pipeline
         return False, get_from_pipeline(model=model, dataset=dataset, user=user, last_item_id=int(last_item_id))
@@ -418,6 +413,14 @@ def check_eqf_level_completed(user, last_item_id, items):
 
 
 '''
+This function get the last Learning Unit id the user has seen.
+'''
+def get_last_lu_id_by_timestamp(user):
+    completed_lus = sorted(user['completed_lus'], key=lambda d: d['timestamp'], reverse=True)
+    return completed_lus[0]["lu_id"]
+
+
+'''
 This function checks if user information is stored
 both in model and dataset.
 '''
@@ -449,18 +452,6 @@ def get_item_with_no_interaction_ids(items, user):
 
     return item_with_no_interaction_ids
 
-
-'''
-This function checks if last Learning Unit result
-is valid, where valid means a value in the range
-0.0 - 1.0.
-'''
-def check_valid_result(result: float):
-    if result < 0.0 or result > 1.0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f'Result With Value {result} Is Not Valid.')
-
-
 '''
 This function checks if user_id is in users list.
 If not it triggers an exception.
@@ -490,27 +481,16 @@ def check_valid_item(is_last_lm, last_item_id, items, lm_items, user):
 
     
     # Check if is_last_lm is a valid value.
-    if is_last_lm == True and user['lu_counter'] != 5:
+    # Every 5 LU (counter)
+    if is_last_lm == True and len(user['completed_lus']) % 5 != 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f'Item With ID={last_item_id} Not Accepted.')
     
-    user_lm_ids = list(map(lambda i: i['id'], user['completed_lm_lus']))
-    lm_ids = list(map(lambda i: i['id'], lm_items))
-
-    if is_last_lm == False and (user['lu_counter'] < 0 or user['lu_counter'] >= 5) and len(user_lm_ids) < len(lm_ids):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f'Item With ID={last_item_id} Not Accepted.')
 
     # Check for existing item
-    if is_last_lm == False and int(last_item_id) != -1 and len(list(filter(lambda item: item['id'] == int(last_item_id), items))) == 0:
+    if is_last_lm == False and int(last_item_id) != -1 and len(list(filter(lambda item: item['id'] == last_item_id, items))) == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'Item With ID={last_item_id} Not Found.')
-
-    # Check if received last_item_id == -1 but
-    # the user has already seen some items
-    if is_last_lm == False and int(last_item_id) == -1 and len(user.get('completed_lus')) != 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f'Item With ID={last_item_id} Not Accepted.')
 
 '''
 This function sorts items the user has not interacted with by obtained
@@ -548,7 +528,12 @@ def determine_last_item(user):
         return False, -1
 
     max_ts_lu = list(filter(lambda lu: lu['timestamp'] == max([e['timestamp'] for e in completed_lus]), completed_lus))[0]
-    max_ts_lm_lu = list(filter(lambda lu: lu['timestamp'] == max([e['timestamp'] for e in completed_lm_lus]), completed_lm_lus))[0]
+
+    max_ts_lm_lu = list(filter(lambda lu: lu['timestamp'] == max([e['timestamp'] for e in completed_lm_lus]), completed_lm_lus))
+    if len(max_ts_lm_lu) == 0:
+        return False, max_ts_lu['lu_id']
+
+    max_ts_lm_lu = max_ts_lm_lu[0]
 
     # Last LU was a standard Learning unit
     if max_ts_lu['timestamp'] > max_ts_lm_lu['timestamp']:
