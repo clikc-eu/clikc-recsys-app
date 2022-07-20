@@ -15,8 +15,6 @@ from ..repository import lm_learning_unit as lm_lu_repository, learning_unit as 
 class Dataset():
     '''
     This dataset class has to be used in order to train the recommender.
-
-    - use 'build_from_local_db_pickle()' in order to build the dataset from local pickle file(s).
     - use 'build_from_online_db()' in order to use data fetched from the
     remote database.
     '''
