@@ -258,15 +258,21 @@ class Dataset():
         for lu in lus_dump:
             # Take just english translation
             translation = list(filter(lambda t: t.language_name=="en", lu.translations))[0]
-            plain_text = translation.title
-            plain_text += " " + translation.subtitle
-            plain_text += " " + translation.introduction
-            plain_text += " " + translation.text_area
+            plain_text = ""
+            if translation.title != None:
+                plain_text += translation.title
+            if translation.subtitle != None:
+                plain_text += " " + translation.subtitle
+            if translation.introduction != None:
+                plain_text += " " + translation.introduction
+            if translation.text_area != None:
+                plain_text += " " + translation.text_area
 
             # Take all dynamic fields of type paragraph, memory box, reference and language point
             dynamic_fields = list(filter(lambda f: f.type==DynamicFieldType.PARAGRAPH or f.type==DynamicFieldType.MEMORY_BOX or f.type==DynamicFieldType.REFERENCE or f.type==DynamicFieldType.LANGUAGE_POINT, translation.dynamic_fields))
             for field in dynamic_fields:
-                plain_text += " " + field.content
+                if field.content != None:
+                    plain_text += " " + field.content
 
             # Remove HTML tags, if any
             cleaned_text = BeautifulSoup(plain_text)

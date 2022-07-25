@@ -18,7 +18,7 @@ def get_all(db: Session):
 
     lus_data = list()
 
-    lus_data = db.query(models.LearningUnit).where(models.LearningUnit.cluster_number > '0', models.LearningUnit.skill > '0',  models.LearningUnit.eqf_level > '1')
+    lus_data = db.query(models.LearningUnit).where(models.LearningUnit.cluster_number != None, models.LearningUnit.cluster_number > '0', models.LearningUnit.skill != None, models.LearningUnit.skill > '0',  models.LearningUnit.eqf_level != None, models.LearningUnit.eqf_level > '1', models.LearningUnit.translations != None)
 
     lus_data = list(map(lambda i: LearningUnit.from_orm(i), lus_data))
 
