@@ -40,11 +40,11 @@ def predict_for_user(user_id: int, random_mode: bool, db: Session):
             [item.dict() for item in item_data]).to_dict('records')
 
         # Labour market items as Python dictionary
-        lm_items = lm_lu_repository.get_all()
+        lm_items = lm_lu_repository.get_all(db)
 
         # Users as Python dictionary
-        # TODO: get users from online DB - to get updated data about completed LUs
-        users = user_repository.get_all()
+        # TODO: GET JUST DESIRED USER
+        users = user_repository.get_all(db)
 
         # Check if user_id is valid
         user = check_valid_user(user_id, users)
@@ -116,9 +116,10 @@ def predict_for_user(user_id: int, random_mode: bool, db: Session):
         items = dataset.items_list
 
         # Labour market items as Python dictionary
-        lm_items = lm_lu_repository.get_all()
+        lm_items = lm_lu_repository.get_all(db)
 
-        users = user_repository.get_all()
+        # TODO: Get just desired user
+        users = user_repository.get_all(db)
 
         # Check if user_id is valid
         user = check_valid_user(user_id, users)
