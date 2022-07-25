@@ -1,3 +1,4 @@
+from fastapi import HTTPException, status
 from ..constants import MappingType
 from lightfm.data import Dataset as LightDataset
 
@@ -52,7 +53,7 @@ def get_external_ids(dataset: LightDataset, id_type: MappingType):
 This function maps cluster numbers from recommender format to DB (to_db=True) format
 and viceversa (to_db=False).
 '''
-def cluster_mapper(cluster_number: str, skill: str, to_db: bool = False):
+def cluster_mapper(id: int, cluster_number: str, skill: str, to_db: bool = False):
 
     db_to_rec = {
         "1" : "1",
@@ -94,4 +95,10 @@ def cluster_mapper(cluster_number: str, skill: str, to_db: bool = False):
             }
             return m[cluster_number]
 
-    return db_to_rec[cluster_number]
+    try:
+        val = db_to_rec[cluster_number]
+    except:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                detail=f'Entity With ID={id} Not Valid.')
+
+    return val

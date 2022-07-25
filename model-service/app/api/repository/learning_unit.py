@@ -18,12 +18,12 @@ def get_all(db: Session):
 
     lus_data = list()
 
-    lus_data = db.query(models.LearningUnit).all()
+    lus_data = db.query(models.LearningUnit).where(models.LearningUnit.cluster_number > '0', models.LearningUnit.skill > '0',  models.LearningUnit.eqf_level > '1')
 
     lus_data = list(map(lambda i: LearningUnit.from_orm(i), lus_data))
 
     for elem in lus_data:
-        elem.cluster_number = cluster_mapper(
+        elem.cluster_number = cluster_mapper(id=elem.id,
             cluster_number=elem.cluster_number, skill=elem.skill, to_db=False)
 
     # TODO: remove when switching to online users
