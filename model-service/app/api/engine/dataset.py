@@ -73,8 +73,10 @@ class Dataset():
         # TODO: Load from db using repository methods
         logger.info("Preparing learning units online dump.")
 
+        db = next(database.get_db())
+
         # Load learning units data from online DB
-        items_dump = lu_repository.get_all(next(database.get_db()))
+        items_dump = lu_repository.get_all(db)
 
         logger.info("Extracting keywords to enrich learning units local dump.")
 
@@ -87,12 +89,13 @@ class Dataset():
         logger.info("Keywords successfully extracted. Learning Units ready.")
 
         logger.info("Preparing labour market learning units local dump.")
-        lm_items_dump = lm_lu_repository.get_all()
+        lm_items_dump = lm_lu_repository.get_all(db)
 
-        # Load users data from pickle file
+        # Load users data from online db
         # users_dump is a dictionary
         logger.info("Preparing users local dump.")
-        users_dump = user_repository.get_all()
+        
+        users_dump = user_repository.get_all(db)
 
         logger.info("Users successfully extracted.")
 

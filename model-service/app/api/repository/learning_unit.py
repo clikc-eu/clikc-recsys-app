@@ -10,9 +10,7 @@ from ..schemas import LearningUnit
 
 
 '''
-This function reads learning units from a local pickle file.
-In case the pickle file does not exist it builds the pickle file
-starting from a basic json file.
+This function reads learning units from the online db.
 '''
 def get_all(db: Session):
 

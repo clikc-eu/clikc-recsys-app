@@ -46,7 +46,6 @@ class Translation(BaseModel):
     language_name: str  # language code
     title: str
     subtitle: str
-    #keywords: List[str]       # list of keywords
     keywords: str       # list of keywords, comma separated
     introduction: str
     text_area: str
@@ -76,6 +75,9 @@ Model of a single labour market Learning Unit
 class LMLearningUnit(BaseModel):
     id: int
 
+    class Config():
+        orm_mode = True
+
 class CompletedLMLearningUnit(LMLearningUnit):
     timestamp: float  # Timestamp when labour market learning unit was registered as completed
 
@@ -99,15 +101,8 @@ class CompletedLearningUnit(BaseModel):
 User model
 '''
 class User(BaseModel):
-    id: str
-    first_name: str
-    last_name: str
-    username: str
-    email: str
-    gender: str
+    id: int
     eqf_levels: List[List[str]] # 3 clusters for each skill
     fav_clusters: List[Cluster] # 3 favourite clusters from assessment phase
     completed_lus: List[CompletedLearningUnit]  # List of completed Learning Units
     completed_lm_lus: List[CompletedLMLearningUnit]      # List of completet labour market Learning Units
-    lu_counter: int     # Counter for viewed Learning Unit (LU). Every 5 LU is set to zero and
-                        # a LU from labour market is recommended
