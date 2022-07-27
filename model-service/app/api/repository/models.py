@@ -97,6 +97,7 @@ class UserLearningUnit(Base):
     learning_unit_labour_market_id = Column(Integer, ForeignKey('learning_unit_labour_market.id'))
     liked = Column(Integer)
     test_completed_on = Column(TIMESTAMP)
+    completed_on = Column(TIMESTAMP)
 
     learning_unit = relationship('LearningUnit')
     user = relationship('User', back_populates='user_learning_unit')

@@ -484,6 +484,8 @@ def check_valid_item(is_last_lm, last_item_id, items, lm_items, user):
     
     # Check if is_last_lm is a valid value.
     # Every 5 LU (counter)
+    # If user history does not match this constraint
+    # an exception will be triggered
     if is_last_lm == True and len(user['completed_lus']) % 5 != 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f'Item With ID={last_item_id} Not Accepted.')
@@ -532,6 +534,7 @@ def determine_last_item(user):
     max_ts_lu = list(filter(lambda lu: lu['timestamp'] == max([e['timestamp'] for e in completed_lus]), completed_lus))[0]
 
     max_ts_lm_lu = list(filter(lambda lu: lu['timestamp'] == max([e['timestamp'] for e in completed_lm_lus]), completed_lm_lus))
+    
     if len(max_ts_lm_lu) == 0:
         return False, max_ts_lu['lu_id']
 

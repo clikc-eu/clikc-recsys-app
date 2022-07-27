@@ -149,9 +149,9 @@ def build_user(user: models.User) -> User:
             timestamp = convert_timestamp_to_float(ts=str(lu.test_completed_on))
             completed_lus.append(CompletedLearningUnit(lu_id=lu.learning_unit_id, result=result, liked=liked, timestamp=timestamp))
 
-        elif (lu.test_completed_on != None and lu.learning_unit_labour_market_id != 0 and lu.learning_unit_labour_market_id != None) and (lu.learning_unit_id == 0 or lu.learning_unit_id == None):
+        elif (lu.completed_on != None and lu.learning_unit_labour_market_id != 0 and lu.learning_unit_labour_market_id != None) and (lu.learning_unit_id == 0 or lu.learning_unit_id == None):
             # Labour market learning unit
-            timestamp = convert_timestamp_to_float(ts=str(lu.test_completed_on))
+            timestamp = convert_timestamp_to_float(ts=str(lu.completed_on))
             completed_lm_lus.append(CompletedLMLearningUnit(id=lu.learning_unit_labour_market_id, timestamp=timestamp))
 
     return User(id=user.id, eqf_levels=eqf_levels, fav_clusters=fav_clusters, completed_lus=completed_lus, completed_lm_lus=completed_lm_lus)
