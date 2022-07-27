@@ -10,7 +10,7 @@ This is a wrapper function that builds LightFM Dataset
 and then it train a LightFM model. In the end
 the model is stored on disk
 '''
-def train_model(data_source: DataSource = DataSource.LOCAL_DB_PICKLE):
+def train_model(data_source: DataSource = DataSource.ONLINE_DB):
     
     logger.info("Training request.")
 

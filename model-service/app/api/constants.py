@@ -33,8 +33,6 @@ class FilePath():
 class DataSource(Enum):
     PICKLE = 2
     ONLINE_DB = 3
-    LOCAL_ON_DEMAND_USER = 5
-    LOCAL_DB_PICKLE = 6
 
 # Load/Store Dataset State
 class DatasetState():
@@ -73,3 +71,55 @@ List of configuration keys contained in "configuration.json" file
 class JsonConfig():
     RANDOM_MODE_NAME = 'random_mode' # Used to start the microservice with random recommendations
     API_KEY_NAME = 'access-token'    # Used to get the api key used in the authentication header
+    # Database informations
+    DB_NAME_NAME = 'db'              # Database field name       
+    DB_USER_NAME = 'user'            # User field name
+    DB_PW_NAME = 'pw'                # Password field name
+    DB_IP_NAME = 'ip'                # IP field name
+    DB_PORT_NAME = 'port'            # Port field name
+
+
+'''
+List of all possible combinations of skill, cluster, eqf
+'''
+class SkillClusterEqf():
+    # Skill 1
+    SCE_1_1_2 = 'skill:1-cluster:1-eqf:2'
+    SCE_1_1_3 = 'skill:1-cluster:1-eqf:3'
+    SCE_1_1_4 = 'skill:1-cluster:1-eqf:4'
+    SCE_1_2_2 = 'skill:1-cluster:2-eqf:2'
+    SCE_1_2_3 = 'skill:1-cluster:2-eqf:3'
+    SCE_1_2_4 = 'skill:1-cluster:2-eqf:4'
+    SCE_1_3_2 = 'skill:1-cluster:3-eqf:2'
+    SCE_1_3_3 = 'skill:1-cluster:3-eqf:3'
+    SCE_1_3_4 = 'skill:1-cluster:3-eqf:4'
+    # Skill 2
+    SCE_2_1_2 = 'skill:2-cluster:1-eqf:2'
+    SCE_2_1_3 = 'skill:2-cluster:1-eqf:3'
+    SCE_2_1_4 = 'skill:2-cluster:1-eqf:4'
+    SCE_2_2_2 = 'skill:2-cluster:2-eqf:2'
+    SCE_2_2_3 = 'skill:2-cluster:2-eqf:3'
+    SCE_2_2_4 = 'skill:2-cluster:2-eqf:4'
+    SCE_2_3_2 = 'skill:2-cluster:3-eqf:2'
+    SCE_2_3_3 = 'skill:2-cluster:3-eqf:3'
+    SCE_2_3_4 = 'skill:2-cluster:3-eqf:4'
+    # Skill 3
+    SCE_3_1_2 = 'skill:3-cluster:1-eqf:2'
+    SCE_3_1_3 = 'skill:3-cluster:1-eqf:3'
+    SCE_3_1_4 = 'skill:3-cluster:1-eqf:4'
+    SCE_3_2_2 = 'skill:3-cluster:2-eqf:2'
+    SCE_3_2_3 = 'skill:3-cluster:2-eqf:3'
+    SCE_3_2_4 = 'skill:3-cluster:2-eqf:4'
+    SCE_3_3_2 = 'skill:3-cluster:3-eqf:2'
+    SCE_3_3_3 = 'skill:3-cluster:3-eqf:3'
+    SCE_3_3_4 = 'skill:3-cluster:3-eqf:4'
+    # Skill 4
+    SCE_4_1_2 = 'skill:4-cluster:1-eqf:2'
+    SCE_4_1_3 = 'skill:4-cluster:1-eqf:3'
+    SCE_4_1_4 = 'skill:4-cluster:1-eqf:4'
+    SCE_4_2_2 = 'skill:4-cluster:2-eqf:2'
+    SCE_4_2_3 = 'skill:4-cluster:2-eqf:3'
+    SCE_4_2_4 = 'skill:4-cluster:2-eqf:4'
+    SCE_4_3_2 = 'skill:4-cluster:3-eqf:2'
+    SCE_4_3_3 = 'skill:4-cluster:3-eqf:3'
+    SCE_4_3_4 = 'skill:4-cluster:3-eqf:4'

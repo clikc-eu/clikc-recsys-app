@@ -4,25 +4,22 @@ import random
 from typing import List
 from lightfm.data import Dataset as LightDataset
 import pandas as pd
-from ..constants import DynamicFieldType, FilePath, DataSource, DatasetState
+from bs4 import BeautifulSoup
+from ..constants import DynamicFieldType, FilePath, DataSource, DatasetState, SkillClusterEqf
 from ..util.logger import logger
 from .load_store import store_data, load_data
-import it_core_news_lg
+import en_core_web_sm
 from ..schemas import LearningUnit
-from ..repository import lm_learning_unit as lm_lu_repository, learning_unit as lu_repository, user as user_repository
-
-
+from ..repository import lm_learning_unit as lm_lu_repository, learning_unit as lu_repository, user as user_repository, database
 
 class Dataset():
     '''
     This dataset class has to be used in order to train the recommender.
-
-    - use 'build_from_local_db_pickle()' in order to build the dataset from local pickle file(s).
     - use 'build_from_online_db()' in order to use data fetched from the
     remote database.
     '''
 
-    def __init__(self, data_source: int = DataSource.LOCAL_DB_PICKLE):
+    def __init__(self, data_source: int = DataSource.ONLINE_DB):
         '''
         The Constructor of Dataset class internally uses the Dataset class provided by LightFM: https://making.lyst.com/lightfm/docs/lightfm.data.html
         '''
@@ -57,39 +54,29 @@ class Dataset():
 
         # On Dataset Building delete old dataset and trained model pickle files if necessary
         # depending on data_source
-        if data_source == DataSource.LOCAL_DB_PICKLE:
-            # Load users, learning units and interactions
-            # from local pickle files
-
-            # Delete the old dataset if exists
-            if os.path.isfile(FilePath.TEMP_DATASET_PICKLE_PATH):
-                os.remove(FilePath.TEMP_DATASET_PICKLE_PATH)
-            
-            logger.info("Building dataset from local dump.")
-
-            self.__build_from_local_db_pickle()
-
-        elif data_source == DataSource.ONLINE_DB:
+        if data_source == DataSource.ONLINE_DB:
             if os.path.isfile(FilePath.TEMP_DATASET_PICKLE_PATH):
                 os.remove(FilePath.TEMP_DATASET_PICKLE_PATH)
 
             self.__build_from_online_db()
 
         elif data_source == DataSource.PICKLE:
-
+            logger.info("Loading built Dataset stored on disk.")
             self.__load_dataset()
 
         logger.info("Dataset ready.")
 
     '''
-    This method builds a dataset starting from local pickle files
+    This method build a dataset starting from online DB
     '''
-    def __build_from_local_db_pickle(self):
-        
-        logger.info("Preparing learning units local dump.")
+    def __build_from_online_db(self):
+        # TODO: Load from db using repository methods
+        logger.info("Preparing learning units online dump.")
 
-        # Load learning units data from pickle file
-        items_dump = lu_repository.get_all()
+        db = next(database.get_db())
+
+        # Load learning units data from online DB
+        items_dump = lu_repository.get_all(db)
 
         logger.info("Extracting keywords to enrich learning units local dump.")
 
@@ -102,23 +89,25 @@ class Dataset():
         logger.info("Keywords successfully extracted. Learning Units ready.")
 
         logger.info("Preparing labour market learning units local dump.")
-        lm_items_dump = lm_lu_repository.get_all()
+        lm_items_dump = lm_lu_repository.get_all(db)
 
-        # Load users data from pickle file
+        # Load users data from online db
         # users_dump is a dictionary
         logger.info("Preparing users local dump.")
-        users_dump = user_repository.get_all()
+        
+        users_dump = user_repository.get_all(db)
 
         logger.info("Users successfully extracted.")
 
         # Build list of all features by using skill:cluster:eqf (encoded) and keywords
-        skill_cluster_eqf = list({'skill:' + lu.get('skill') + '-' + 'cluster:' + lu.get('cluster_number') + '-' + 'eqf:' + lu.get('eqf_level') for lu in items_dump})
+        skill_cluster_eqf = self.__add_required_skill_cluster_eqf_triplets()
         keywords = []
         for lu in items_dump:
             if lu.get('extracted_keywords'):
                 keywords.extend(lu.get('extracted_keywords'))
             if lu.get('translations')[0].get('keywords'):
-                keywords.extend(lu.get('translations')[0].get('keywords'))
+                kws = lu.get('translations')[0].get('keywords').split(",")
+                keywords.extend(kws)
             
         keywords = list(set(keywords))
 
@@ -143,7 +132,7 @@ class Dataset():
         # Also mappings for user and item features are created.
         self.dataset.fit(
             ([user["id"] for user in self.users_list]),
-            ([item["identifier"] for item in self.items_list]),
+            ([item["id"] for item in self.items_list]),
             user_features=self.user_features,
             item_features=self.item_features
         )
@@ -162,7 +151,10 @@ class Dataset():
             user_skill_cluster_eqf = list()
             for skill in range(4):
                 for cluster in range(3):
-                    user_skill_cluster_eqf.append(f"skill:{str(skill + 1)}-cluster:{str(cluster + 1)}-eqf:{str(user['eqf_levels'][skill][cluster])}")
+                    try:
+                        user_skill_cluster_eqf.append(f"skill:{str(skill + 1)}-cluster:{str(cluster + 1)}-eqf:{str(user['eqf_levels'][skill][cluster])}")
+                    except IndexError:
+                        logger.error(f"User {user['id']} has no eqf_levels registered")
             
             users_features_list.append(
                 (user["id"], user_skill_cluster_eqf))
@@ -177,10 +169,11 @@ class Dataset():
                 kwds += item["extracted_keywords"]
 
             if item.get('translations')[0].get('keywords'):
-                kwds.extend(item.get('translations')[0].get('keywords'))    
+                kws = item.get('translations')[0].get('keywords').split(",")
+                kwds.extend(kws)    
             
             items_features_list.append(
-                (item["identifier"], list(kwds) + [f"skill:{item['skill']}-cluster:{item['cluster_number']}-eqf:{item['eqf_level']}"]))
+                (item["id"], list(kwds) + [f"skill:{item['skill']}-cluster:{item['cluster_number']}-eqf:{item['eqf_level']}"]))
 
         self.uf_matrix = self.dataset.build_user_features(users_features_list)
         logger.info("Users features matrix has been built: %s" %
@@ -195,12 +188,8 @@ class Dataset():
         # store produced data on disk
         self.__store_dataset()
 
-    '''
-    This method build a dataset starting from online DB
-    '''
-    def __build_from_online_db(self):
-        # TODO: Load from db using repository methods
-        pass
+
+
 
 
     def __build_interactions_matrix(self, users_with_items_interactions: list):
@@ -264,31 +253,42 @@ class Dataset():
     def __extract_keywords(self, lus_dump: List[LearningUnit]):
 
         # Load proper model
-        model = it_core_news_lg.load()
+        model = en_core_web_sm.load()
 
         # For each learning unit get extracted keywords
         lu_keywords = []
+        logger.info(f"Starting extraction of {len(lus_dump)} documents.")
         for lu in lus_dump:
             # Take just english translation
             translation = list(filter(lambda t: t.language_name=="en", lu.translations))[0]
-            plain_text = translation.title
-            plain_text += " " + translation.subtitle
-            plain_text += " " + translation.introduction
-            plain_text += " " + translation.text_area
+            plain_text = ""
+            if translation.title != None:
+                plain_text += translation.title
+            if translation.subtitle != None:
+                plain_text += " " + translation.subtitle
+            if translation.introduction != None:
+                plain_text += " " + translation.introduction
+            if translation.text_area != None:
+                plain_text += " " + translation.text_area
 
             # Take all dynamic fields of type paragraph, memory box, reference and language point
             dynamic_fields = list(filter(lambda f: f.type==DynamicFieldType.PARAGRAPH or f.type==DynamicFieldType.MEMORY_BOX or f.type==DynamicFieldType.REFERENCE or f.type==DynamicFieldType.LANGUAGE_POINT, translation.dynamic_fields))
             for field in dynamic_fields:
-                plain_text += " " + field.content
+                if field.content != None:
+                    plain_text += " " + field.content
+
+            # Remove HTML tags, if any
+            cleaned_text = BeautifulSoup(plain_text)
+            cleaned_text = cleaned_text.get_text()
             
-            keywords = list(set((self.__get_keywords(model, plain_text))))
+            keywords = list(set((self.__get_keywords(model, cleaned_text))))
             lu_keywords.append(keywords)
 
         lus_df = pd.DataFrame.from_records([lu.dict() for lu in lus_dump])
         lus_df['extracted_keywords'] = lu_keywords
         lus_dict = lus_df.to_dict('records')
 
-        # save as json
+        # ENABLE TO DEBUG: save as json
         with open(os.getcwd() + '/' + FilePath.LU_JSON_PATH, 'w') as f:
             json.dump(lus_dict, f)
 
@@ -307,3 +307,55 @@ class Dataset():
                 res.append(entity.text.lower())
                 
         return res
+
+
+    '''
+    This method returns all possible combinations (triplets) of skills, clusters and eqfs
+    '''
+    def __add_required_skill_cluster_eqf_triplets(self):
+        skill_cluster_eqf = list()
+        skill_cluster_eqf.extend([
+            # Skill 1
+            SkillClusterEqf.SCE_1_1_2,
+            SkillClusterEqf.SCE_1_1_3,
+            SkillClusterEqf.SCE_1_1_4,
+            SkillClusterEqf.SCE_1_2_2,
+            SkillClusterEqf.SCE_1_2_3,
+            SkillClusterEqf.SCE_1_2_4,
+            SkillClusterEqf.SCE_1_3_2,
+            SkillClusterEqf.SCE_1_3_3,
+            SkillClusterEqf.SCE_1_3_4,
+            # Skill 2
+            SkillClusterEqf.SCE_2_1_2,
+            SkillClusterEqf.SCE_2_1_3,
+            SkillClusterEqf.SCE_2_1_4,
+            SkillClusterEqf.SCE_2_2_2,
+            SkillClusterEqf.SCE_2_2_3,
+            SkillClusterEqf.SCE_2_2_4,
+            SkillClusterEqf.SCE_2_3_2,
+            SkillClusterEqf.SCE_2_3_3,
+            SkillClusterEqf.SCE_2_3_4,
+            # Skill 3
+            SkillClusterEqf.SCE_3_1_2,
+            SkillClusterEqf.SCE_3_1_3,
+            SkillClusterEqf.SCE_3_1_4,
+            SkillClusterEqf.SCE_3_2_2,
+            SkillClusterEqf.SCE_3_2_3,
+            SkillClusterEqf.SCE_3_2_4,
+            SkillClusterEqf.SCE_3_3_2,
+            SkillClusterEqf.SCE_3_3_3,
+            SkillClusterEqf.SCE_3_3_4,
+            # Skill 4
+            SkillClusterEqf.SCE_4_1_2,
+            SkillClusterEqf.SCE_4_1_3,
+            SkillClusterEqf.SCE_4_1_4,
+            SkillClusterEqf.SCE_4_2_2,
+            SkillClusterEqf.SCE_4_2_3,
+            SkillClusterEqf.SCE_4_2_4,
+            SkillClusterEqf.SCE_4_3_2,
+            SkillClusterEqf.SCE_4_3_3,
+            SkillClusterEqf.SCE_4_3_4,
+        ])
+
+        return skill_cluster_eqf
+

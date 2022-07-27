@@ -9,7 +9,7 @@ RUN apt-get update \
     && apt-get clean
 
 RUN pip install -r /app/requirements.txt \
-    && python -m spacy download it_core_news_lg \
+    && python -m spacy download en_core_web_sm \
     && rm -rf /root/.cache/pip
 
 COPY . /app/
