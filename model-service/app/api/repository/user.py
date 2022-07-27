@@ -1,8 +1,3 @@
-'''
-This method reads user data from a local pickle file.
-In case the pickle file does not exist it builds the pickle file
-starting from a basic json file.
-'''
 from datetime import datetime
 import os
 import pickle
@@ -19,6 +14,9 @@ from ..schemas import CompletedLMLearningUnit, CompletedLearningUnit, User, Clus
 from ..util import mapping
 from sqlalchemy.orm import Session
 
+'''
+This function reads users stored in the online DB.
+'''
 def get_all(db: Session):
 
     users_data = list()
@@ -42,9 +40,29 @@ def get_all(db: Session):
     store_json(user_json, os.getcwd() + '/' + FilePath.USER_JSON_PATH)
 
     return user_json
+
+
+'''
+This function reads a certain user, stored in the online DB, given its id.
+'''
+def get_one(user_id: int, db: Session):
     
-def get_one():
-    pass
+    # Returns the user in dictionary format or None
+    user_data: models.User = db.query(models.User).where(models.User.id == user_id).first()
+
+    if user_data != None:
+        user: User = build_user(user_data)
+        user_json = pd.DataFrame.from_records([user.dict()]).to_dict('records')[0]
+
+        # Not valid user. Missing data about eqf levels for each cluster
+        if user_data.user_cluster_skill == None:
+            user_json['eqf_levels'] = []
+            user_json['fav_clusters'] = []
+
+        return user_json
+
+    # Case the user is None (not found in DB)
+    return user_data
 
 
 '''

@@ -5,21 +5,19 @@ import pandas as pd
 from .training import check_trained_model, train_model
 from .dataset import Dataset
 from .load_store import load_data
-from ..util.mapping import map_id_external_to_internal, map_id_internal_to_external, get_external_ids, get_user_feature_mapping
+from ..util.mapping import map_id_external_to_internal, get_external_ids
 from ..constants import DataSource, FilePath, MappingType
 import numpy as np
 from lightfm.data import Dataset as LightDataset
 from fastapi import HTTPException, status
 from ..repository import lm_learning_unit as lm_lu_repository, learning_unit as lu_repository, user as user_repository
-from ..schemas import CompletedLMLearningUnit, CompletedLearningUnit, LMLearningUnit
-from datetime import datetime
 from sqlalchemy.orm import Session
 
 
 '''
     This functionality performs a prediction for
     a known user given its ID.
-    "last_lu_id" represents the id of the last Learning Unit
+    "last_item_id" represents the id of the last Learning Unit
     viewed by the user. -1 means that we have to provide recommendations
     after the self-assessment phase.
     The first 3 predictions are returned
@@ -42,12 +40,11 @@ def predict_for_user(user_id: int, random_mode: bool, db: Session):
         # Labour market items as Python dictionary
         lm_items = lm_lu_repository.get_all(db)
 
-        # Users as Python dictionary
-        # TODO: GET JUST DESIRED USER
-        users = user_repository.get_all(db)
+        # User as Python dictionary if not None
+        user = user_repository.get_one(user_id, db)
 
-        # Check if user_id is valid
-        user = check_valid_user(user_id, users)
+        # Check if user exists
+        check_valid_user(user_id, user)
 
         # Determine last_item_id and if it was a labour marker LU or not
         is_last_lm, last_item_id = determine_last_item(user)
@@ -118,11 +115,11 @@ def predict_for_user(user_id: int, random_mode: bool, db: Session):
         # Labour market items as Python dictionary
         lm_items = lm_lu_repository.get_all(db)
 
-        # TODO: Get just desired user
-        users = user_repository.get_all(db)
+        # User as Python dictionary if not None
+        user = user_repository.get_one(user_id, db)
 
-        # Check if user_id is valid
-        user = check_valid_user(user_id, users)
+        # Check if user is not None
+        check_valid_user(user_id, user)
 
         # Determine last_item_id and if it was a labour marker LU or not
         is_last_lm, last_item_id = determine_last_item(user)
@@ -198,7 +195,7 @@ def get_from_pipeline(model, dataset, user, last_item_id):
 
     # Map external user id to internal dataset id
     internal_user_id = map_id_external_to_internal(
-        dataset=dataset.dataset, external_id=str(user['id']), id_type=MappingType.USER_ID_TYPE)
+        dataset=dataset.dataset, external_id=user['id'], id_type=MappingType.USER_ID_TYPE)
 
     # Get items the user has not interacted with - shape: [{"lu_id": "370", "result": 0.7775328675422801}, ...]
     # Use updated online data
@@ -427,7 +424,7 @@ both in model and dataset.
 '''
 def check_user_in_model(user_id, dataset_users):
     user_list = list(
-        filter(lambda user: user['id'] == str(user_id), dataset_users))
+        filter(lambda user: user['id'] == user_id, dataset_users))
 
     if len(user_list) == 0:
         return False
@@ -454,17 +451,17 @@ def get_item_with_no_interaction_ids(items, user):
     return item_with_no_interaction_ids
 
 '''
-This function checks if user_id is in users list.
+This function checks if user with user_id is not None.
 If not it triggers an exception.
 '''
-def check_valid_user(user_id, users):
-    user_list = list(filter(lambda user: user['id'] == str(user_id), users))
-    if len(user_list) == 0:
+def check_valid_user(user_id, user):
+    if user == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f'User With ID={user_id} Not Found.')
 
-    return user_list[0]
-
+    if len(user['fav_clusters']) == 0 or len(user['eqf_levels']) == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f'User With ID={user_id} Not Valid.')
 
 '''
 This function checks if last_lu_id is valid: 

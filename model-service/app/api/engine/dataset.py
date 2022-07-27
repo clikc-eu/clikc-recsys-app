@@ -61,7 +61,7 @@ class Dataset():
             self.__build_from_online_db()
 
         elif data_source == DataSource.PICKLE:
-
+            logger.info("Loading built Dataset stored on disk.")
             self.__load_dataset()
 
         logger.info("Dataset ready.")
