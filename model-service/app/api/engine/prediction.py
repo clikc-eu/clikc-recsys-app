@@ -59,6 +59,7 @@ def predict_for_user(user_id: int, random_mode: bool, db: Session):
             # of the user for that cluster.
             # This happens only when all the learning units of a cluster have
             # been completed for a given eqf level.
+            
             increase, skill, cluster_number = check_eqf_level_completed(
                 user=user, last_item_id=int(last_item_id), items=items)
 
@@ -68,8 +69,9 @@ def predict_for_user(user_id: int, random_mode: bool, db: Session):
                                int(skill) - 1][int(cluster_number) - 1])
                 if user_eqf < 4:
                     user_eqf += 1
-                    user = user_repository.update_eqf(user['id'], int(
-                        skill) - 1, int(cluster_number) - 1, str(user_eqf))
+                    user_repository.update_eqf(user['id'], skill, cluster_number, str(user_eqf), db)
+                    # If no DB exception has occured update user local state
+                    user['eqf_levels'][int(skill) - 1][int(cluster_number) - 1] = str(user_eqf)
 
         # Check if it is necessary to recommend labour market Learning Unit
         if len(user['completed_lus']) % 5 == 0 and len(user['completed_lus']) > 0 and is_last_lm == False:
@@ -141,10 +143,12 @@ def predict_for_user(user_id: int, random_mode: bool, db: Session):
                 # eqf level must be increased if it is possible (eqf_level < 4)
                 user_eqf = int(user.get('eqf_levels')[
                                int(skill) - 1][int(cluster_number) - 1])
+                
                 if user_eqf < 4:
                     user_eqf += 1
-                    user = user_repository.update_eqf(user['id'], int(
-                        skill) - 1, int(cluster_number) - 1, str(user_eqf))
+                    user_repository.update_eqf(user['id'], skill, cluster_number, str(user_eqf), db)
+                    # If no DB exception has occured update user local state
+                    user['eqf_levels'][int(skill) - 1][int(cluster_number) - 1] = str(user_eqf)
 
         # Check if it is necessary to recommend labour market Learning Unit
         if len(user['completed_lus']) % 5 == 0 and len(user['completed_lus']) > 0 and is_last_lm == False:

@@ -3,9 +3,11 @@ import os
 import pickle
 import time
 from typing import List
+from fastapi import HTTPException, status
 
 import pandas as pd
-from sqlalchemy import TIMESTAMP
+from sqlalchemy import TIMESTAMP, exc
+import sqlalchemy
 from ..constants import FilePath
 from ..util.logger import logger
 from ..engine.load_store import load_data, store_data, store_json
@@ -67,36 +69,29 @@ def get_one(user_id: int, db: Session):
 
 '''
 This function updates the eqf level of a cluster
-for a given user.
+for a given user stored on Database.
 '''
-def update_eqf(user_id: str, skill: int, cluster: int, eqf: str):
-    # Load users as dictionary
-    user_data = load_data(os.getcwd() + '/' + FilePath.USER_PICKLE_PATH)
+def update_eqf(user_id: int, skill: str, cluster: str, eqf: str, db: Session):
 
-    # user index
-    i = 0
+    # Map cluster number to db format
+    c = mapping.cluster_mapper(user_id, cluster, skill, to_db=True)
 
-    # Find user index in data
-    for u in user_data:
-        if u.id == user_id:
-            break
+    user_cluster_entry = db.query(models.UserClusterSkill).filter(models.UserClusterSkill.user_id == user_id, models.UserClusterSkill.cluster_id == c)
 
-        i = i + 1
+    if user_cluster_entry.first() == None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='Element not found.')
 
-    # Append Learning Unit to user history
-    user_data[i].eqf_levels[skill][cluster] = eqf
+    user_cluster_entry.update({
+        models.UserClusterSkill.skill_value: eqf,
+    })
 
-    user_json = pd.DataFrame.from_records([user.dict() for user in user_data]).to_dict('records')
-
-
-    # save as json
-    store_json(user_json, os.getcwd() + '/' + FilePath.USER_JSON_PATH)
-
-    # save as pickle
-    store_data(user_data, os.getcwd() + '/' + FilePath.USER_PICKLE_PATH)
-
-    # return updated user
-    return user_json[i]
+    try:
+        db.commit()
+    except exc.SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='An Internal Error Has Occurred.')
 
 
 '''
