@@ -16,10 +16,10 @@ class StatusOut(BaseModel):
     random_mode_on: bool
 
 '''
-Output status of training phase: it shows if training has been triggered
+Output status of training phase: it shows if training has been completed
 '''
 class StatusTrainingOut(BaseModel):
-    training_triggered: bool
+    training_completed: bool
 
 '''
 List of the ids of the recommendations given as output to the user

@@ -12,7 +12,7 @@ class StatusOut(BaseModel):
 
 
 class StatusTrainingOut(BaseModel):
-    training_triggered: bool
+    training_completed: bool
 
 class RecommendOut(BaseModel):
     is_labour_market: bool

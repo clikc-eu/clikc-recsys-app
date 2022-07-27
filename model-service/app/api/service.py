@@ -18,11 +18,14 @@ class ModelService():
     def train_model(self):
 
         if main.random_mode == True:
-            return StatusTrainingOut(training_triggered=False)
+            return StatusTrainingOut(training_completed=False)
 
-        main.scheduler.get_job(job_id=TrainingJob.JOB_ID).modify(
-            next_run_time=datetime.datetime.now())
-        return StatusTrainingOut(training_triggered=True)
+        # main.scheduler.get_job(job_id=TrainingJob.JOB_ID).modify(
+        #     next_run_time=datetime.datetime.now())
+
+        training.train_model()
+
+        return StatusTrainingOut(training_completed=True)
 
     def get_recommendations_for_user(self, user_id: int, db: Session):
         is_labour_market, ids = prediction.predict_for_user(user_id=user_id, random_mode=main.random_mode, db=db)

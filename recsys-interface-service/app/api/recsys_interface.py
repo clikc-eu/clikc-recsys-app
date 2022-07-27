@@ -76,8 +76,7 @@ async def get_status(client_session: ClientSession = Depends(client_session_dep)
 async def train_model(client_session: ClientSession = Depends(client_session_dep), api_key: APIKey = Depends(authentication)):
 
     '''
-    This endpoint gives us some to manually trigger a model training without interfer
-    with the default scheduling. Simply, next training is perfomed with this call.
+    This endpoint gives us the possibility to manually trigger a model training.
     '''
     return await RecsysInterfaceService().train_model(client_session=client_session)
 
