@@ -25,13 +25,13 @@ def get_all(db: Session):
 
     lus_dict = pd.DataFrame.from_records([lu.dict() for lu in lm_lus_data]).to_dict('records')
 
-    # TODO: remove when switching to online users
+    # Enable just for debug purposes
     # save as pickle
-    with open(os.getcwd() + '/' + FilePath.LM_LU_PICKLE_PATH, 'wb') as fle:
-        pickle.dump(lus_dict, fle, protocol=pickle.HIGHEST_PROTOCOL)
+    # with open(os.getcwd() + '/' + FilePath.LM_LU_PICKLE_PATH, 'wb') as fle:
+    #     pickle.dump(lus_dict, fle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    # save as json
-    with open(os.getcwd() + '/' + FilePath.LM_LU_JSON_PATH, 'w') as f:
-        json.dump(lus_dict, f)
+    # # save as json
+    # with open(os.getcwd() + '/' + FilePath.LM_LU_JSON_PATH, 'w') as f:
+    #     json.dump(lus_dict, f)
 
     return lus_dict

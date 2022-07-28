@@ -24,9 +24,9 @@ def get_all(db: Session):
         elem.cluster_number = cluster_mapper(id=elem.id,
             cluster_number=elem.cluster_number, skill=elem.skill, to_db=False)
 
-    # TODO: remove when switching to online users
+    # Enable just for debug purposes
     # save as pickle
-    with open(os.getcwd() + '/' + FilePath.LU_PICKLE_PATH, 'wb') as fle:
-        pickle.dump(lus_data, fle, protocol=pickle.HIGHEST_PROTOCOL)
+    # with open(os.getcwd() + '/' + FilePath.LU_PICKLE_PATH, 'wb') as fle:
+    #     pickle.dump(lus_data, fle, protocol=pickle.HIGHEST_PROTOCOL)
 
     return lus_data

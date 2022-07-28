@@ -31,15 +31,15 @@ def get_all(db: Session):
         u = build_user(user)
         users.append(u)
 
-    # TODO: remove when switching to online users
+    # Enable just for debug purposes
     # save as pickle
-    with open(os.getcwd() + '/' + FilePath.USER_PICKLE_PATH, 'wb') as fle:
-        pickle.dump(users, fle, protocol=pickle.HIGHEST_PROTOCOL)
+    # with open(os.getcwd() + '/' + FilePath.USER_PICKLE_PATH, 'wb') as fle:
+    #     pickle.dump(users, fle, protocol=pickle.HIGHEST_PROTOCOL)
 
     user_json = pd.DataFrame.from_records([user.dict() for user in users]).to_dict('records')
 
     # save as json
-    store_json(user_json, os.getcwd() + '/' + FilePath.USER_JSON_PATH)
+    # store_json(user_json, os.getcwd() + '/' + FilePath.USER_JSON_PATH)
 
     return user_json
 
