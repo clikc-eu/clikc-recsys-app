@@ -1,8 +1,10 @@
 import json
 import os
 import random
+from scipy import sparse
 from typing import List
 from lightfm.data import Dataset as LightDataset
+import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
 from ..constants import DynamicFieldType, FilePath, DataSource, DatasetState, SkillClusterEqf
@@ -70,7 +72,6 @@ class Dataset():
     This method build a dataset starting from online DB
     '''
     def __build_from_online_db(self):
-        # TODO: Load from db using repository methods
         logger.info("Preparing learning units online dump.")
 
         db = next(database.get_db())
@@ -148,16 +149,9 @@ class Dataset():
         # format: [(user1 , [feature1, feature2, ...]), ..]
         users_features_list = list()
         for user in self.users_list:
-            user_skill_cluster_eqf = list()
-            for skill in range(4):
-                for cluster in range(3):
-                    try:
-                        user_skill_cluster_eqf.append(f"skill:{str(skill + 1)}-cluster:{str(cluster + 1)}-eqf:{str(user['eqf_levels'][skill][cluster])}")
-                    except IndexError:
-                        logger.error(f"User {user['id']} has no eqf_levels registered")
-            
+            uf = self.extract_user_feature(user)
             users_features_list.append(
-                (user["id"], user_skill_cluster_eqf))
+                (user["id"], uf))
 
         # format: [(item1 , [feature1, feature2, ...]), ..]
         items_features_list = list()
@@ -307,6 +301,41 @@ class Dataset():
                 res.append(entity.text.lower())
                 
         return res
+
+    '''
+    This method extracts the eqf level for each cluster for a given user
+    '''
+    def extract_user_feature(self, user):
+        user_skill_cluster_eqf = list()
+        for skill in range(4):
+            for cluster in range(3):
+                try:
+                    user_skill_cluster_eqf.append(f"skill:{str(skill + 1)}-cluster:{str(cluster + 1)}-eqf:{str(user['eqf_levels'][skill][cluster])}")
+                except IndexError:
+                    logger.error(f"User {user['id']} has no eqf_levels registered")
+
+        return user_skill_cluster_eqf
+
+
+    '''
+    This method returns a user-feature map for the new user
+    '''
+    def format_new_user_input(self, user_feature_map, user_feature_list):
+        normalised_val = 1.0
+        t_indices = []
+
+        for feature in user_feature_list:
+            try:
+                t_indices.append(user_feature_map[feature])
+            except KeyError:
+                logger.info("New user feature encountered '{}'".format(feature))
+                pass
+
+        new_user_features = np.zeros(len(user_feature_map.keys()))
+        for i in t_indices:
+            new_user_features[i] = normalised_val
+        new_user_features = sparse.csr_matrix(new_user_features)
+        return(new_user_features)
 
 
     '''
