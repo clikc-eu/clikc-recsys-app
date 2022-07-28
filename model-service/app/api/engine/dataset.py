@@ -282,9 +282,9 @@ class Dataset():
         lus_df['extracted_keywords'] = lu_keywords
         lus_dict = lus_df.to_dict('records')
 
-        # ENABLE TO DEBUG: save as json
-        with open(os.getcwd() + '/' + FilePath.LU_JSON_PATH, 'w') as f:
-            json.dump(lus_dict, f)
+        # Enable just for debug purposes
+        # with open(os.getcwd() + '/' + FilePath.LU_JSON_PATH, 'w') as f:
+        #     json.dump(lus_dict, f)
 
         return lus_dict
 
