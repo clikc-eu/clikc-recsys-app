@@ -32,7 +32,8 @@ if random_mode == False:
     # Shut down the scheduler when exiting the app
     atexit.register(lambda: scheduler.shutdown())
 
-
-app = FastAPI(openapi_url="/api/v1/model/openapi.json", docs_url="/api/v1/model/docs")
+# Uncomment to enable the auto-documentation page
+# app = FastAPI(openapi_url="/api/v1/model/openapi.json", docs_url="/api/v1/model/docs")
+app = FastAPI(openapi_url=None, docs_url=None)
 
 app.include_router(model, prefix='/api/v1/model', tags=['model'])

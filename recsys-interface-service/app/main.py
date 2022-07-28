@@ -8,8 +8,10 @@ from .api.recsys_interface import recsys_interface
 from aiohttp import ClientSession
 
 
+# Uncomment to enable the auto-documentation page
+# app: Final = FastAPI(openapi_url="/api/v1/recsys-interface/openapi.json", docs_url="/api/v1/recsys-interface/docs")
+app: Final = FastAPI(openapi_url=None, docs_url=None)
 
-app: Final = FastAPI(openapi_url="/api/v1/recsys-interface/openapi.json", docs_url="/api/v1/recsys-interface/docs")
 
 app.include_router(recsys_interface, prefix='/api/v1/recsys-interface', tags=['recsys-interface'])
 

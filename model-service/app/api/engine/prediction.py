@@ -5,7 +5,7 @@ import pandas as pd
 from .training import check_trained_model, train_model
 from .dataset import Dataset
 from .load_store import load_data
-from ..util.mapping import map_id_external_to_internal, get_external_ids
+from ..util.mapping import get_user_feature_mapping, map_id_external_to_internal, get_external_ids
 from ..constants import DataSource, FilePath, MappingType
 import numpy as np
 from lightfm.data import Dataset as LightDataset
@@ -156,13 +156,7 @@ def predict_for_user(user_id: int, random_mode: bool, db: Session):
             if len(lm_lu_ids) > 0:
                 return True, lm_lu_ids[0:1]
 
-
         user_in_model: bool = check_user_in_model(user_id, dataset.users_list)
-
-        # If recommendations are for a user which is not
-        # in the model dataset, re-build dataset and train the model
-        if user_in_model == False:
-            train_model()
 
         if is_last_lm == True:
             # We need to get last standard Learning Unit id in order
@@ -170,7 +164,7 @@ def predict_for_user(user_id: int, random_mode: bool, db: Session):
             last_item_id = get_last_lu_id_by_timestamp(user=user)
 
         # Get recommendations from pipeline
-        return False, get_from_pipeline(model=model, dataset=dataset, user=user, last_item_id=int(last_item_id))
+        return False, get_from_pipeline(model=model, dataset=dataset, user=user, last_item_id=int(last_item_id), user_in_model=user_in_model)
 
 
 '''
@@ -192,14 +186,16 @@ prediction pipeline.
 Pipeline is composed of path A, B and C.
 We get one result from each path.
 '''
-def get_from_pipeline(model, dataset, user, last_item_id):
+def get_from_pipeline(model, dataset, user, last_item_id, user_in_model):
 
     # For prediction
     num_items = len(dataset.items_list)
 
-    # Map external user id to internal dataset id
-    internal_user_id = map_id_external_to_internal(
-        dataset=dataset.dataset, external_id=user['id'], id_type=MappingType.USER_ID_TYPE)
+    if user_in_model == True:
+        # Map external user id to internal dataset id
+        internal_user_id = map_id_external_to_internal(dataset=dataset.dataset, external_id=user['id'], id_type=MappingType.USER_ID_TYPE)
+    else:
+        internal_user_id = 0
 
     # Get items the user has not interacted with - shape: [{"lu_id": "370", "result": 0.7775328675422801}, ...]
     # Use updated online data
@@ -207,7 +203,7 @@ def get_from_pipeline(model, dataset, user, last_item_id):
         dataset.items_list, user)
 
     path_a_results = get_from_path_a(model=model, user=user, internal_user_id=internal_user_id, num_items=num_items,
-                                     dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids, last_item_id=last_item_id)
+                                     dataset=dataset, item_with_no_interaction_ids=item_with_no_interaction_ids, last_item_id=last_item_id, user_in_model=user_in_model)
 
     # If after self assessment phase, select items
     # from favourite clusters
@@ -281,10 +277,19 @@ def filter_by_fav_clusters(user, items):
 This function represents Path A of the recommendation pipeline.
 It uses a LightFM model.
 '''
-def get_from_path_a(model, user, internal_user_id, num_items, dataset, item_with_no_interaction_ids, last_item_id):
+def get_from_path_a(model, user, internal_user_id, num_items, dataset, item_with_no_interaction_ids, last_item_id, user_in_model):
 
-    predictions = model.predict(internal_user_id, np.arange(num_items), user_features=dataset.uf_matrix,
-                                item_features=dataset.if_matrix)
+    if user_in_model == True:
+        # For user in model
+        predictions = model.predict(internal_user_id, np.arange(num_items), user_features=dataset.uf_matrix, item_features=dataset.if_matrix)
+    else:
+        # For user not in model yet
+        # Get user-feature mappings
+        user_feature_map = get_user_feature_mapping(dataset.dataset)
+        user_features = dataset.extract_user_feature(user)
+        new_user_features = dataset.format_new_user_input(user_feature_map, user_features)
+
+        predictions = model.predict(internal_user_id, np.arange(num_items), user_features=new_user_features, item_features=dataset.if_matrix)
 
     # Returns a dictionary of items
     # identifier field is now 'id'
