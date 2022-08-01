@@ -134,7 +134,8 @@ def build_user(user: models.User) -> User:
             # Standard learning unit
             # Compute average result for all completed tests
             # Get completed test
-            tests = list(filter(lambda t: t.test.translation.learning_unit_id == lu.learning_unit_id and t.submitted_on != None, user.user_test))
+            tests = list(filter(lambda t: t.test.translation.learning_unit_id == lu.learning_unit_id and t.submitted_on != None and t.used_for_recap_test == 0, user.user_test))
+            
             # Map each test to its accuracy
             tests = list(map(lambda t: t.accuracy, tests))
             result = 0

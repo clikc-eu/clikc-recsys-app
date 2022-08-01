@@ -80,6 +80,7 @@ class UserTest(Base):
     test_id = Column(Integer, ForeignKey('tests.id'))
     accuracy = Column(Float)
     submitted_on = Column(sqlalchemy.TIMESTAMP)
+    used_for_recap_test = Column(Integer)
 
     test = relationship('Test')
     user = relationship('User', back_populates='user_test')
