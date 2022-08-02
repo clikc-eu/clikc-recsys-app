@@ -1,7 +1,8 @@
-version: '3.8'
+version: '2.2'
 
 services:
   model_service:
+    restart: always
     build: ./model-service
     command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
     volumes:
@@ -9,6 +10,7 @@ services:
     container_name: model_service
 
   recsys_interface_service:
+    restart: always
     build: ./recsys-interface-service
     command: uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
     volumes:
@@ -16,6 +18,7 @@ services:
     container_name: recsys_interface_service
 
   nginx:
+    restart: always
     build: ./nginx-service
     container_name: nginx_service
     ports:
